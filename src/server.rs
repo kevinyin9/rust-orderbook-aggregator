@@ -1,6 +1,9 @@
 use config::Config;
+use std::pin::Pin;
+use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::{sync::mpsc, sync::oneshot, sync::watch};
+use tokio_stream::{wrappers::ReceiverStream, Stream};
 use tonic::{transport::Server, Request, Response, Status};
 
 pub mod orderbook {
@@ -9,19 +12,22 @@ pub mod orderbook {
 
 use orderbook::{
     orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
-    Summary, Level,
+    Empty, Summary, Level,
 };
 
-#[derive(Default)]
-pub struct OrderbookSummary {}
+#[derive(Debug)]
+pub struct OrderbookSummary {
+    summary: mpsc::Sender::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>
+}
 
 #[tonic::async_trait]
 impl OrderbookAggregator for OrderbookSummary {
-    type SummaryStream = Pin<Box<dyn Stream<Item = Result<Summary, Status>> + Send>>;
+    // type BookSummaryStream = Pin<Box<dyn Stream<Item = Result<Summary, Status>> + Send>>;
+    type BookSummaryStream = ReceiverStream<Result<Summary, Status>>;
     async fn book_summary(
         &self,
-        request: Request<Summary>,
-    ) -> Result<tonic::Response<Self::SummaryStream>, Status> { // Return an instance of type HelloReply
+        request: Request<Empty>,
+    ) -> Result<Response<Self::BookSummaryStream>, Status> {
         println!("Got a request");
         
         let reply = orderbook::Summary{
@@ -36,14 +42,16 @@ impl OrderbookAggregator for OrderbookSummary {
             }],
         };
 
-        Ok(tonic::Response::new(
-            Box::pin(stream) as Self::SummaryStream
-        ))
+        let (mut tx, rx) = mpsc::channel(4);
+
+        tx.send(Ok(reply)).await.unwrap();
+
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> { // Should i return Result<(), Error>?
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::builder()
         // read the setting.toml
         .add_source(config::File::with_name("src/setting"))
@@ -52,12 +60,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> { // Should i return R
         .try_deserialize::<HashMap<String, String>>()
         .unwrap();
 
-    let orderbook = OrderbookSummary::deafult();
+    let (tx2, mut rx2) =
+        mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(100);
+
+    let orderbook_summary = OrderbookSummary {
+        summary: tx2,
+    };
+
+    let svc = OrderbookAggregatorServer::new(orderbook_summary);
+
+    // Server uses IP:Port (SocketAddr)
+    let address = format!("{}:{}", config.get("server-ip").unwrap(), config.get("server-port").unwrap()).parse()?;
+
+    println!("{:?}", address);
 
     Server::builder()
-    .add_service(OrderbookAggregatorServer::new(orderbook))
-    .serve(config["server-ip"].parse()?)
-    .await?;
+        .add_service(svc)
+        .serve(address)
+        .await?;
 
     Ok(())
 }

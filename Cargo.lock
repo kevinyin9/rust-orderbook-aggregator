@@ -925,6 +925,7 @@ dependencies = [
  "config",
  "prost",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tonic-build",
 ]
