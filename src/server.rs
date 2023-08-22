@@ -50,6 +50,10 @@ impl OrderbookAggregator for OrderbookSummary {
     }
 }
 
+async fn start(symbol: Symbol) {
+    
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::builder()
