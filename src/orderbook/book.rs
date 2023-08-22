@@ -1,27 +1,28 @@
+
 pub struct OrderBookBasicInfo {
     pub exchange: Exchange,
     pub symbol: Symbol,
-    pub bids: Vec<u64>,
-    pub asks: Vec<u64>,
+    pub bids: Vec<f64>,
+    pub asks: Vec<f64>,
     pub price_precision: f64,
     pub quantity_precision: f64,
     pub last_update_id: u64,
-    pub price_min: u64,
-    pub price_max: u64,
+    pub price_min: f64,
+    pub price_max: f64,
 }
 
 impl OrderBookBasicInfo {
     pub fn new(
-        exchange: u64,
+        exchange: f64,
         symbol: Symbol,
-        price_precision: u64,
-        quantity_precision: u64,
-        price_min: u64,
-        price_max: u64,
+        price_precision: f64,
+        quantity_precision: f64,
+        price_min: f64,
+        price_max: f64,
     ) -> Self {
         let capacity: u32 = 10;
-        let mut bids: Vec<u64> = vec![0; capacity];
-        let mut asks: Vec<u64> = vec![0; capacity];
+        let mut bids: Vec<f64> = vec![0; capacity];
+        let mut asks: Vec<f64> = vec![0; capacity];
 
         Self {
             exchange,
