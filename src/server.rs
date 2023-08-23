@@ -5,10 +5,10 @@ use std::collections::HashMap;
 use tokio::{sync::mpsc, sync::oneshot, sync::watch};
 use tokio_stream::{wrappers::ReceiverStream, Stream};
 use tonic::{transport::Server, Request, Response, Status};
-use orderbook::{
+use crate::{
     orderbook::OrderBookOnlyLevels,
-    exchange::{binance::Binance, bitstamp::Bitstamp};
-}
+    exchange::{binance::Binance, bitstamp::Bitstamp},
+};
 
 pub mod orderbook {
     tonic::include_proto!("orderbook");
@@ -34,27 +34,20 @@ impl OrderbookAggregator for OrderbookSummary {
     ) -> Result<Response<Self::BookSummaryStream>, Status> {
         println!("Got a request");
         
-        let reply = orderbook::Summary{
-            spread: 6.4,
-            bids: vec![orderbook::Level{exchange: "binance".to_string(),
-                price: 3.5,
-                amount: 1.0,
-            }],
-            asks: vec![orderbook::Level{exchange: "binance".to_string(),
-                price: 3.5,
-                amount: 1.0,
-            }],
-        };
+        let (tx, rx) = oneshot::channel::<watch::Receiver<Result<Summary, Status>>>();
+        self.summary.send(tx).await.unwrap();
+        let rx_summary = rx1.await.unwrap();
 
-        let (mut tx, rx) = mpsc::channel(4);
+        let stream = ReceiverStream::new(rx_summary);
 
-        tx.send(Ok(reply)).await.unwrap();
-
-        Ok(Response::new(ReceiverStream::new(rx)))
+        // Ok(Response::new(
+        //     Box::pin(stream) as Self::WatchSummaryStream
+        // ))
+        Ok(Response::new(stream))
     }
 }
 
-async fn start(symbol: &str) {
+async fn start(symbol: &str) -> mpsc::Sender::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>{
 
     let binance_orderbook = Binance::new(symbol).await.unwrap();
     let bitstamp_orderbook = Bitstamp::new(symbol).await.unwrap();
@@ -62,23 +55,39 @@ async fn start(symbol: &str) {
     let (tx, mut rx) = mpsc::channel(20);
     let tx2 = tx.clone();
 
+    let (tx3, rx3) = mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(20);
+    drop(rx3);
+
     tokio::spawn(async move {
         binance_orderbook.start(tx).await.unwrap();
     });
     tokio::spawn(async move {
         bitstamp_orderbook.start(tx2).await.unwrap();
     });
-
+    let reply = orderbook::Summary{
+        spread: 6.4,
+        bids: vec![orderbook::Level{exchange: "binance".to_string(),
+            price: 3.5,
+            amount: 1.0,
+        }],
+        asks: vec![orderbook::Level{exchange: "binance".to_string(),
+            price: 3.5,
+            amount: 1.0,
+        }],
+    };
     tokio::spawn(async move {
-        let merged_orderbook = HashMap::<Exchange, OrderBookOnlyLevels>::new();
+        let merged_orderbook = HashMap::<&str, OrderBookOnlyLevels>::new();
         loop {
-            select! {
-                val = rx.recv() => {
-                    println!("{:?}", val);
-                }
-            }
+            // select! {
+                // val = rx.recv() => {
+                //     tx.send_replace(Ok(reply)).unwrap();
+                //     println!("{:?}", val);
+                // }
+            // }
+            tx3.send_replace(Ok(reply)).unwrap();
         }
     });
+    tx3
 }
 
 #[tokio::main]
@@ -92,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let orderbook_summary = OrderbookSummary {
-        summary: start("BTCUSDT"),
+        summary: start("BTCUSDT").await,
     };
 
     let svc = OrderbookAggregatorServer::new(orderbook_summary);

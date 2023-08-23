@@ -1,9 +1,6 @@
 use config::Config;
 use std::collections::HashMap;
 use tonic::{Request};
-pub mod orderbook {
-    tonic::include_proto!("orderbook");
-}
 
 use orderbook::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tonic::transport::Channel;

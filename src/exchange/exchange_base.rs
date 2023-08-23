@@ -1,40 +1,48 @@
+use anyhow::{Context, Result};
 use url::Url;
-use crate::order_book::orderbook::{OrderBook};
+use crate::orderbook::orderbook::{OrderBook, OrderBookBasicInfo};
+use async_trait::async_trait;
 
-pub trait Exchange {
+#[async_trait]
+pub trait Exchange<Error = anyhow::Error> {
     const BASE_URL_HTTPS: &'static str;
     const BASE_URL_WSS: &'static str;
 
-    async fn new_exchange(symbol: &str) -> Result<>;
+    async fn new_exchange(symbol: String) -> Result<Self>
+    where
+        Self: Sized;
 
-    async fn new_orderbook(exchange: &str, symbol: &str) {
+    async fn new_orderbook(exchange: String, symbol: String)  -> Result<OrderBook>
+    where
+        Self: Sized,
+    {
         let OrderBookBasicInfo {
-            storage_price_min,
-            storage_price_max,
-            scale_price,
-            scale_quantity,
-        } = Self::get_orderbook_info(&symbol, price_range).await?;
+            price_precision,
+            quantity_precision,
+            price_min,
+            price_max,
+        } = Self::get_orderbook_info(&symbol).await?;
 
         let orderbook = OrderBook::new(
             exchange,
             symbol,
-            storage_price_min,
-            storage_price_max,
-            scale_price,
-            scale_quantity,
+            price_precision,
+            quantity_precision,
+            price_min,
+            price_max
         );
 
-        tracing::debug!(
+        println!(
             "returning orderbook for {} {} min: {} max: {} scale_p: {}, scale_q: {}",
             exchange,
             symbol,
-            storage_price_min,
-            storage_price_max,
-            scale_price,
-            scale_quantity
+            price_precision,
+            quantity_precision,
+            price_min,
+            price_max
         );
         Ok(orderbook)
     }
 
-    async fn get_orderbook_info(symbol: &Symbol, price_range: u8) -> Result<OrderBookArgs>;
+    async fn get_orderbook_info(symbol: String, price_range: u8) -> Result<OrderBookBasicInfo>;
 }

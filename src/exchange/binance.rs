@@ -1,13 +1,18 @@
-use crate::{orderbook::order_book::OrderBook};
+use crate::{orderbook::orderbook::{OrderBook, OrderBookBasicInfo}};
+use super::exchange_base::{Exchange};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use async_trait::async_trait;
 
 pub struct Binance {
     pub orderbook: Arc<Mutex<OrderBook>>,
 }
 
+#[async_trait]
 impl Exchange for Binance {
-    async fn new(symbol: &str) -> Result<Self>
+    async fn new_exchange(symbol: String) -> Result<Self>
     {
-        let exchange = Exchange::BINANCE;
+        let exchange = "Binance";
         let orderbook = Self::new_orderbook(exchange, symbol).await?;
         let exchange_orderbook = Self {
             orderbook: Arc::new(Mutex::new(orderbook)),
@@ -15,23 +20,21 @@ impl Exchange for Binance {
         Ok(exchange_orderbook)
     }
 
-    async fn get_orderbook_info(symbol: &str) -> Result<OrderBookArgs> {
+    async fn get_orderbook_info(symbol: String) -> Result<OrderBookBasicInfo> {
         let (best_price, _) = Self::fetch_prices(symbol).await?;
 
         println!("base_url_https: {}", Self::base_url_https());
-        let (scale_price, scale_quantity) =
-            ExchangeInfoBinance::fetch_scales(Self::base_url_https(), symbol).await?;
-        let (storage_price_min, storage_price_max) =
-            OrderBookArgs::get_min_max(best_price, price_range, scale_price)?;
+        let (price_precision, quantity_precision) = (8.0, 9.0);
+            // ExchangeInfoBinance::fetch_scales(Self::base_url_https(), symbol).await?;
+        let (price_min, price_max) = (3.0, 5.0);
+            // OrderBookBasicInfo::get_min_max(best_price, price_range, price_precision)?;
 
-        let args = OrderBookArgs {
-            storage_price_min,
-            storage_price_max,
-            scale_price,
-            scale_quantity,
+        let args = OrderBookBasicInfo {
+            price_min,
+            price_max,
+            price_precision,
+            quantity_precision,
         };
-
-        tracing::debug!("orderbook args: {:#?}", args);
 
         Ok(args)
     }
