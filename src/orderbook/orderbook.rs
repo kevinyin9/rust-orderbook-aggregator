@@ -1,7 +1,15 @@
 
-pub struct OrderBookBasicInfo {
-    pub exchange: Exchange,
-    pub symbol: Symbol,
+pub struct OrderBookOnlyLevels {
+    pub exchange: &str,
+    pub symbol: &str,
+    pub bids: Vec<f64>,
+    pub asks: Vec<f64>,
+    pub last_update_id: u64,
+}
+
+pub struct OrderBook {
+    pub exchange: &str,
+    pub symbol: &str,
     pub bids: Vec<f64>,
     pub asks: Vec<f64>,
     pub price_precision: f64,
@@ -11,10 +19,10 @@ pub struct OrderBookBasicInfo {
     pub price_max: f64,
 }
 
-impl OrderBookBasicInfo {
-    pub fn new(
+impl OrderBook {
+    pub fn new_orderbook(
         exchange: f64,
-        symbol: Symbol,
+        symbol: &str,
         price_precision: f64,
         quantity_precision: f64,
         price_min: f64,

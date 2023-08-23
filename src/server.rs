@@ -5,6 +5,10 @@ use std::collections::HashMap;
 use tokio::{sync::mpsc, sync::oneshot, sync::watch};
 use tokio_stream::{wrappers::ReceiverStream, Stream};
 use tonic::{transport::Server, Request, Response, Status};
+use orderbook::{
+    orderbook::OrderBookOnlyLevels,
+    exchange::{binance::Binance, bitstamp::Bitstamp};
+}
 
 pub mod orderbook {
     tonic::include_proto!("orderbook");
@@ -50,8 +54,31 @@ impl OrderbookAggregator for OrderbookSummary {
     }
 }
 
-async fn start(symbol: Symbol) {
+async fn start(symbol: &str) {
+
+    let binance_orderbook = Binance::new(symbol).await.unwrap();
+    let bitstamp_orderbook = Bitstamp::new(symbol).await.unwrap();
     
+    let (tx, mut rx) = mpsc::channel(20);
+    let tx2 = tx.clone();
+
+    tokio::spawn(async move {
+        binance_orderbook.start(tx).await.unwrap();
+    });
+    tokio::spawn(async move {
+        bitstamp_orderbook.start(tx2).await.unwrap();
+    });
+
+    tokio::spawn(async move {
+        let merged_orderbook = HashMap::<Exchange, OrderBookOnlyLevels>::new();
+        loop {
+            select! {
+                val = rx.recv() => {
+                    println!("{:?}", val);
+                }
+            }
+        }
+    });
 }
 
 #[tokio::main]
@@ -64,11 +91,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_deserialize::<HashMap<String, String>>()
         .unwrap();
 
-    let (tx2, mut rx2) =
-        mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(100);
-
     let orderbook_summary = OrderbookSummary {
-        summary: tx2,
+        summary: start("BTCUSDT"),
     };
 
     let svc = OrderbookAggregatorServer::new(orderbook_summary);
