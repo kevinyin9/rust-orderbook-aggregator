@@ -57,4 +57,8 @@ pub trait Exchange {
 
     async fn get_orderbook_info(symbol: &Symbol) -> Result<OrderBookBasicInfo>;
     async fn get_exchange_info(url: Url, symbol: Symbol) -> Result<ExchangeInfo>;
+    async fn get_websocket_stream(&self) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>>;
+
+    async fn start(&self, tx_summary: mpsc::Sender<OrderBookOnlyLevels>) -> Result<()> {
+    }
 }

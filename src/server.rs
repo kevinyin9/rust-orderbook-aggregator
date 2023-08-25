@@ -54,9 +54,9 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
     let (tx3, rx3) = mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(20);
     // drop(rx3);
 
-    // tokio::spawn(async move {
-    //     binance_orderbook.start(tx).await.unwrap();
-    // });
+    tokio::spawn(async move {
+        binance_orderbook.start(tx).await.unwrap();
+    });
     // tokio::spawn(async move {
     //     bitstamp_orderbook.start(tx2).await.unwrap();
     // });
