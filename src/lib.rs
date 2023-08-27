@@ -2,7 +2,7 @@ pub mod exchange;
 pub mod orderbook;
 use serde::{Deserialize, Serialize};
 
-pub mod orderbooksummary {
+pub mod orderbook_summary {
     tonic::include_proto!("orderbooksummary");
 }
 
