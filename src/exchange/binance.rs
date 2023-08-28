@@ -1,13 +1,12 @@
 use anyhow::{ensure, Context, Result};
-use crate::orderbook::orderbook::{OrderBook, OrderBookBasicInfo, Update};
-use super::exchange::{Exchange, ExchangeInfo};
+use crate::orderbook::orderbook::{OrderBook, Update};
+use super::exchange::Exchange;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     collections::BTreeMap,
     sync::Arc,
 };
 use rust_decimal::Decimal;
-use serde_json::Value;
 use tokio::sync::Mutex;
 use async_trait::async_trait;
 use url::Url;
@@ -32,7 +31,7 @@ where
     Ok(map)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub last_update_id: u64,
@@ -89,13 +88,15 @@ impl Update for BookUpdate {
         if last_id == 0 {
             return Ok(());
         }
+        // println!("{} {}", first_update_id, last_id + 1);
         ensure!(
             first_update_id == last_id + 1,
-            "failed to validate: first_update_id: {first_update_id} != last_id: {last_id} + 1"
+            "first_update_id: {first_update_id} != last_id: {last_id} + 1"
         );
+        // println!("wtf2");
         ensure!(
             last_id < self.first_update_id,
-            "failed to validate: last_id: {last_id} >= first_update_id: {first_update_id}"
+            "last_id: {last_id} >= first_update_id: {first_update_id}"
         );
         Ok(())
     }
@@ -172,42 +173,6 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             orderbook: Arc::new(Mutex::new(orderbook)),
         };
         Ok(binance)
-    }
-
-    async fn get_exchange_info(url: Url, symbol: Symbol) -> Result<ExchangeInfo> {
-        let mut endpoint = url.join("exchangeInfo").unwrap();
-        endpoint
-            .query_pairs_mut()
-            .append_pair("symbol", &symbol.to_string())
-            .finish();
-
-        let exchange_info = reqwest::get(endpoint)
-            .await
-            .context("Failed to get exchange info")?
-            .json::<ExchangeInfo>()
-            .await
-            .context("Failed to deserialize exchange info to json")?;
-        Ok(exchange_info)
-    }
-
-    async fn get_orderbook_info(symbol: &Symbol) -> Result<OrderBookBasicInfo> {
-        let (best_price, _) = (100.0, 0);
-        // Self::fetch_prices(symbol).await?;
-
-        // println!("base_url_https: {}", Self::base_url_https());
-        let (price_precision, quantity_precision) = (Decimal::new(8, 1), Decimal::new(9, 1));
-            // ExchangeInfoBinance::fetch_scales(Self::base_url_https(), symbol).await?;
-        let (price_min, price_max) = (Decimal::new(3, 1), Decimal::new(5, 1));
-            // OrderBookBasicInfo::get_min_max(best_price, price_range, price_precision)?;
-
-        let args = OrderBookBasicInfo {
-            price_min,
-            price_max,
-            price_precision,
-            quantity_precision,
-        };
-
-        Ok(args)
     }
 
     async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)> {

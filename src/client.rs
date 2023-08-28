@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use tokio_stream::StreamExt;
 use tonic::{Request};
 
-use rust_orderbook_merger::orderbooksummary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
+use rust_orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tonic::transport::Channel;
 
 async fn get_orderbook_summary(mut client: OrderbookAggregatorClient<Channel>) -> Result<()> {
@@ -12,9 +12,6 @@ async fn get_orderbook_summary(mut client: OrderbookAggregatorClient<Channel>) -
     
     let mut stream = client.book_summary(request).await?.into_inner();
 
-    // while let Some(message) = stream.message().await? {
-    //     println!("{:?}", message);
-    // }
     while let Some(result) = stream.next().await {
         match result {
             Ok(summary) => println!("\n{:#?}", summary),

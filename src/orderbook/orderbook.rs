@@ -8,8 +8,6 @@ use rust_decimal::prelude::ToPrimitive;
 pub struct OrderBookBasicInfo {
     pub price_precision: Decimal,
     pub quantity_precision: Decimal,
-    pub price_min: Decimal,
-    pub price_max: Decimal,
 }
 
 #[derive(Debug, Clone)]
@@ -34,21 +32,13 @@ pub struct OrderBook {
     pub symbol: Symbol,
     pub bids: BTreeMap<Decimal, Decimal>,
     pub asks: BTreeMap<Decimal, Decimal>,
-    pub price_precision: Decimal,
-    pub quantity_precision: Decimal,
     pub last_update_id: u64,
-    pub price_min: Decimal,
-    pub price_max: Decimal,
 }
 
 impl OrderBook {
     pub fn new_orderbook(
         exchange: ExchangeName,
         symbol: Symbol,
-        price_precision: Decimal,
-        quantity_precision: Decimal,
-        price_min: Decimal,
-        price_max: Decimal,
     ) -> Self {
         let capacity: usize = 10;
         let mut bids: BTreeMap<Decimal, Decimal> = BTreeMap::new();
@@ -59,11 +49,7 @@ impl OrderBook {
             symbol,
             bids,
             asks,
-            price_precision,
-            quantity_precision,
-            last_update_id: u64::MIN,
-            price_min,
-            price_max
+            last_update_id: u64::MIN
         }
     }
 
@@ -157,25 +143,16 @@ impl OrderBook {
         }
     }
     pub fn update<U: Update + std::fmt::Debug>(&mut self, update: &mut U) -> Result<()> {
-
+        // println!("e04");
         update.validate(self.last_update_id)?;
-
-        // this is set up this way to be able to consume the update without copying it
-        // for bid in update.bids_mut().into_iter() {
-        //     self.add_bid(*bid)?
-        // }
-        // for ask in update.asks_mut().into_iter() {
-        //     self.add_ask(*ask)?
-        // }
+        // println!("==1");
         for (price, quantity) in update.bids_mut().iter() {
             self.add_bid([*price, *quantity])?;
         }
         for (price, quantity) in update.asks_mut().iter() {
             self.add_ask([*price, *quantity])?;
         }
-
         self.last_update_id = update.last_update_id();
-
         Ok(())
     }
 }
