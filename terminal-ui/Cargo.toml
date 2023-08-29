@@ -1,0 +1,9 @@
+[package]
+name = "terminal_ui"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.26.1"
+ratatui = { version = "0.22.0", features = ["all-widgets"]}
