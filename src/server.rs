@@ -1,18 +1,16 @@
 use config::Config;
-use std::pin::Pin;
-use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::{sync::mpsc, sync::oneshot, sync::watch};
-use tokio_stream::{wrappers::WatchStream, Stream};
+use tokio::{sync::mpsc, sync::oneshot, sync::watch, select};
+use tokio_stream::wrappers::WatchStream;
 use tonic::{transport::Server, Request, Response, Status};
 use rust_orderbook_merger::{
     orderbook::orderbook::OrderBookOnlyLevels,
-    exchange::{exchange::Exchange, binance::Binance},
-    orderbooksummary::{
+    exchange::{exchange::Exchange, binance::Binance, bitstamp::Bitstamp},
+    orderbook_summary::{
         orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
-        Empty, Summary, Level,
+        Empty, Summary,
     },
-    Symbol
+    make_summary, Symbol, ExchangeName,
 };
 
 #[derive(Debug)]
@@ -46,43 +44,61 @@ impl OrderbookAggregator for OrderbookSummary {
 async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>{
 
     let binance_orderbook = Binance::new_exchange(symbol).await.unwrap();
-    // let bitstamp_orderbook = Bitstamp::new(symbol).await.unwrap();
+    let bitstamp_orderbook = Bitstamp::new_exchange(symbol).await.unwrap();
     
     let (tx, mut rx) = mpsc::channel::<OrderBookOnlyLevels>(20);
     let tx2 = tx.clone();
 
-    let (tx3, rx3) = mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(20);
-    // drop(rx3);
+    let (tx3, mut rx3) = mpsc::channel::<oneshot::Sender<watch::Receiver<Result<Summary, Status>>>>(20);
+
+    let (tx4, rx4) = watch::channel(Ok(Summary::default()));
+    drop(rx4);
 
     tokio::spawn(async move {
         binance_orderbook.start(tx).await.unwrap();
     });
-    // tokio::spawn(async move {
-    //     bitstamp_orderbook.start(tx2).await.unwrap();
-    // });
-    let reply = Summary{
-        spread: 6.4,
-        bids: vec![Level{exchange: "binance".to_string(),
-            price: 3.5,
-            amount: 1.0,
-        }],
-        asks: vec![Level{exchange: "binance".to_string(),
-            price: 3.5,
-            amount: 1.0,
-        }],
-    };
-    // tokio::spawn(async move {
-    //     let merged_orderbook = HashMap::<&str, OrderBookOnlyLevels>::new();
-    //     loop {
-    //         // select! {
-    //             // val = rx.recv() => {
-    //             //     tx.send_replace(Ok(reply)).unwrap();
-    //             //     println!("{:?}", val);
-    //             // }
-    //         // }
-    //         tx3.send_replace(Ok(reply)).unwrap();
-    //     }
-    // });
+    tokio::spawn(async move {
+        bitstamp_orderbook.start(tx2).await.unwrap();
+    });
+    tokio::spawn(async move {
+        let mut exchange_to_orderbook = HashMap::<ExchangeName, OrderBookOnlyLevels>::new();
+        loop {
+            select! {
+                // Receive a one shot sender that sends a summary receiver back to the server.
+                val = rx3.recv() => {
+                    if let Some(oneshot_sender) = val {
+                        oneshot_sender.send(tx4.subscribe()).unwrap();
+                        // tracing::info!("summary_count: {}, rx count: {}", summary_count, tx.receiver_count());
+                    }
+                },
+                // Receive book levels from the order books.
+                val = rx.recv() => {
+                    if let Some(book_levels) = val {
+                        match book_levels {
+                            OrderBookOnlyLevels { exchange: ExchangeName::BITSTAMP, .. }  => {
+                                exchange_to_orderbook.insert(ExchangeName::BITSTAMP, book_levels);
+                                println!("binance!");
+                            }
+                            OrderBookOnlyLevels { exchange: ExchangeName::BINANCE, .. } => {
+                                exchange_to_orderbook.insert(ExchangeName::BINANCE, book_levels);
+                                println!("bitstamp!");
+                            }
+                        }
+                        if exchange_to_orderbook.len() < 2 {
+                            continue;
+                        }
+                        println!("going to merge?");
+                        // Book levels are stored in the hashmap above and a new summary created from both exchanges
+                        // every time an update is received from either.
+                        let current_levels = exchange_to_orderbook.values().map(|v| v.clone()).collect::<Vec<OrderBookOnlyLevels>>();
+                        let summary = make_summary(current_levels, symbol);
+
+                        tx4.send_replace(Ok(summary)).unwrap();
+                    }
+                },
+            }
+        }
+    });
     tx3
 }
 
