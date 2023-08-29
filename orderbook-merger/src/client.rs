@@ -2,9 +2,9 @@ use anyhow::Result;
 use config::Config;
 use std::collections::HashMap;
 use tokio_stream::StreamExt;
-use tonic::{Request};
+use tonic::Request;
 
-use rust_orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
+use orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tonic::transport::Channel;
 
 async fn get_orderbook_summary(mut client: OrderbookAggregatorClient<Channel>) -> Result<()> {
@@ -28,7 +28,7 @@ async fn get_orderbook_summary(mut client: OrderbookAggregatorClient<Channel>) -
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::builder()
         // read the setting.toml
-        .add_source(config::File::with_name("src/setting"))
+        .add_source(config::File::with_name("orderbook-merger/src/setting"))
         .build()
         .unwrap()
         .try_deserialize::<HashMap<String, String>>()

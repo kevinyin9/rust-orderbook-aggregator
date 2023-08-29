@@ -5,12 +5,6 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
 #[derive(Debug, Default, Clone)]
-pub struct OrderBookBasicInfo {
-    pub price_precision: Decimal,
-    pub quantity_precision: Decimal,
-}
-
-#[derive(Debug, Clone)]
 pub struct OrderBookOnlyLevels {
     pub exchange: ExchangeName,
     pub symbol: Symbol,
@@ -40,9 +34,8 @@ impl OrderBook {
         exchange: ExchangeName,
         symbol: Symbol,
     ) -> Self {
-        let capacity: usize = 10;
-        let mut bids: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        let mut asks: BTreeMap<Decimal, Decimal> = BTreeMap::new();
+        let bids: BTreeMap<Decimal, Decimal> = BTreeMap::new();
+        let asks: BTreeMap<Decimal, Decimal> = BTreeMap::new();
 
         Self {
             exchange,
@@ -70,18 +63,17 @@ impl OrderBook {
     }
     
     pub fn add_bid(&mut self, level: [Decimal; 2]) -> Result<()> {
-        let mut price = level[0];
+        let price = level[0];
         let quantity = level[1];
 
         let bids = self.bids_mut();
         bids.insert(price, quantity);
 
-        
         Ok(())
     }
 
     pub fn add_ask(&mut self, level: [Decimal; 2]) -> Result<()> {
-        let mut price = level[0];
+        let price = level[0];
         let quantity = level[1];
 
         let asks = self.asks_mut();
@@ -96,7 +88,7 @@ impl OrderBook {
             Vec::new()
         } else {
             let mut summary_bids = Vec::<Level>::with_capacity(10);
-            for (&price, &amount) in bids.iter().take(10) {
+            for (&price, &amount) in bids.iter().rev().take(10) {
                 let level = Level {
                     exchange: self.exchange.to_string(),
                     price: price.to_f64().unwrap_or_default(),

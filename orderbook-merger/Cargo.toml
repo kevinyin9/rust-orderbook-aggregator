@@ -31,3 +31,7 @@ tokio-tungstenite = { workspace = true }
 tonic = { workspace = true }
 url = { workspace = true }
 tonic-build = { workspace = true }
+
+[build-dependencies]
+protobuf-json-mapping = "3.2.0"
+tonic-build = { version = "0.9.2", features = ["transport"] }

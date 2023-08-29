@@ -167,12 +167,12 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
     }
     async fn new_exchange(symbol: Symbol) -> Result<Self>
     {
-        let exchange_name = ExchangeName::BINANCE;
-        let orderbook = Self::new_orderbook(exchange_name, symbol).await?;
-        let binance = Self {
-            orderbook: Arc::new(Mutex::new(orderbook)),
-        };
-        Ok(binance)
+        let orderbook = Self::new_orderbook(ExchangeName::BINANCE, symbol).await?;
+        Ok(
+            Self {
+                orderbook: Arc::new(Mutex::new(orderbook))
+            }
+        )
     }
 
     async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)> {
