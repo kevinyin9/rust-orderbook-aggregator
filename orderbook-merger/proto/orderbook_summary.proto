@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package orderbooksummary;
+package orderbook_summary;
 
 service OrderbookAggregator {
   rpc BookSummary(Empty) returns (stream Summary);

@@ -130,28 +130,6 @@ impl From<Snapshot> for BookUpdate {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(super) struct BestPrice {
-    pub symbol: String,
-    pub bid_price: Decimal,
-    pub bid_qty: Decimal,
-    pub ask_price: Decimal,
-    pub ask_qty: Decimal,
-}
-
-impl BestPrice {
-    pub(super) async fn fetch(url: Url) -> Result<Self> {
-        let price = reqwest::get(url)
-            .await
-            .context("Failed to get price")?
-            .json::<Self>()
-            .await
-            .context("Failed to deserialize binance best price")?;
-        Ok(price)
-    }
-}
-
 pub struct Binance {
     pub orderbook: Arc<Mutex<OrderBook>>,
 }

@@ -5,7 +5,7 @@ use crate::orderbook::orderbook::OrderBookOnlyLevels;
 use orderbook_summary::{Level, Summary};
 
 pub mod orderbook_summary {
-    tonic::include_proto!("orderbooksummary");
+    tonic::include_proto!("orderbook_summary");
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
