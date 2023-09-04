@@ -175,15 +175,6 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
         )
     }
 
-    async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)> {
-        let mut url = Self::base_url_https().join("ticker/bookTicker").unwrap();
-        url.query_pairs_mut()
-            .append_pair("symbol", &symbol.to_string())
-            .finish();
-        let price = BestPrice::fetch(url).await?;
-        Ok((price.bid_price, price.ask_price))
-    }
-
     async fn get_snapshot(&self) -> Result<Snapshot> {
         let symbol = self.orderbook().lock().await.symbol;
         let mut url = Self::base_url_https().join("depth").unwrap();

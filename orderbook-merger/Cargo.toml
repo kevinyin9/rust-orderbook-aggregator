@@ -29,6 +29,8 @@ tokio = { workspace = true }
 tokio-stream = { workspace = true }
 tokio-tungstenite = { workspace = true }
 tonic = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = {workspace = true}
 url = { workspace = true }
 tonic-build = { workspace = true }
 

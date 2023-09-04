@@ -9,7 +9,6 @@ use tokio::{
     sync::{mpsc, Mutex},
     task::JoinHandle,
 };
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use crate::{Symbol, ExchangeName};
 
@@ -17,12 +16,12 @@ use crate::{Symbol, ExchangeName};
 pub trait Exchange<
     S: Update + Send,
     U: std::fmt::Debug
-    + Update
-    + From<S>
-    + TryFrom<Message, Error = anyhow::Error>
-    + Send
-    + Sync
-    + 'static,
+        + Update
+        + From<S>
+        + TryFrom<Message, Error = anyhow::Error>
+        + Send
+        + Sync
+        + 'static,
     Error = anyhow::Error,>
 {
     const BASE_URL_HTTPS: &'static str;
@@ -49,7 +48,7 @@ pub trait Exchange<
             symbol
         );
 
-        println!(
+        tracing::debug!(
             "returning orderbook for {} {}",
             exchange,
             symbol
@@ -57,8 +56,6 @@ pub trait Exchange<
         Ok(orderbook)
     }
 
-    // async fn get_price(symbol: &Symbol) -> Result<(Decimal, Decimal)>;
-    async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)>;
     async fn get_snapshot(&self) -> Result<S>;
     async fn get_websocket_stream(&self) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 
@@ -80,18 +77,22 @@ pub trait Exchange<
                     match response {
                         Ok(message) => match U::try_from(message) {
                             Ok(mut update) => {
+                                tracing::debug!(
+                                    "sending update with {} bids and {} asks",
+                                    update.bids_mut().len(),
+                                    update.asks_mut().len()
+                                );
                                 tx_update
                                     .send(update)
                                     .await
                                     .context("failed to send update")?;
                             }
                             Err(_) => {
-                                // println!("failed1!");
-                                continue;    
+                                tracing::error!("failed to get update from message");
                             }
                         },
                         Err(e) => {
-                            // println!("failed2!");
+                            tracing::error!("failed to get message, {:?}", e);
                             continue;
                         }
                     }
@@ -103,9 +104,19 @@ pub trait Exchange<
             let mut ob = orderbook.lock().await;
             let exchange = ob.exchange;
             let symbol = ob.symbol;
+            tracing::debug!(
+                "updating: {} {} {}",
+                exchange,
+                symbol,
+                update.last_update_id()
+            );
             if let Err(err) = ob.update(&mut update) {
-                // println!("{} failed3!", exchange);
-                continue;
+                tracing::error!(
+                    "failed to update orderbook: {} {} {}",
+                    exchange,
+                    symbol,
+                    err
+                );
             } else {
                 if let Some(book_levels) = ob.get_book_levels() {
                     println!("{} send", exchange);

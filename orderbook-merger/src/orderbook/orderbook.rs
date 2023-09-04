@@ -65,9 +65,13 @@ impl OrderBook {
     pub fn add_bid(&mut self, level: [Decimal; 2]) -> Result<()> {
         let price = level[0];
         let quantity = level[1];
-
+        
         let bids = self.bids_mut();
-        bids.insert(price, quantity);
+        if quantity.is_zero() {
+            bids.remove(&price);
+        } else {
+            bids.insert(price, quantity);
+        }
 
         Ok(())
     }
@@ -77,7 +81,11 @@ impl OrderBook {
         let quantity = level[1];
 
         let asks = self.asks_mut();
-        asks.insert(price, quantity);
+        if quantity.is_zero() {
+            asks.remove(&price);
+        } else {
+            asks.insert(price, quantity);
+        }
 
         Ok(())
     }
@@ -135,15 +143,19 @@ impl OrderBook {
         }
     }
     pub fn update<U: Update + std::fmt::Debug>(&mut self, update: &mut U) -> Result<()> {
-        // println!("e04");
+        // tracing::debug!("update {:#?}", update);
+
         update.validate(self.last_update_id)?;
-        // println!("==1");
+
         for (price, quantity) in update.bids_mut().iter() {
+            // tracing::debug!("adding bid: {:?}", [*price, *quantity]);
             self.add_bid([*price, *quantity])?;
         }
         for (price, quantity) in update.asks_mut().iter() {
+            // tracing::debug!("adding ask: {:?}", [*price, *quantity]);
             self.add_ask([*price, *quantity])?;
         }
+        tracing::debug!("Update done!");
         self.last_update_id = update.last_update_id();
         Ok(())
     }

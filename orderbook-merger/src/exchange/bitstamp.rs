@@ -33,7 +33,7 @@ where
     Ok(map)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Snapshot {
     #[serde(
         alias = "microtimestamp",
@@ -112,13 +112,10 @@ impl TryFrom<Message> for BookUpdate {
     type Error = anyhow::Error;
     fn try_from(item: Message) -> Result<Self> {
         match serde_json::from_slice::<Self>(&item.into_data()) {
-            Ok(update) => {
-                // println!("bitstamp ok");
-                Ok(update)
-            },
+            Ok(update) => Ok(update),
             Err(e) => {
-                // println!("bitstamp fuck");
-                Err(anyhow::Error::new(e).context("fuck"))
+                tracing::error!("Failed to deserialize update: {}", e);
+                Err(anyhow::Error::new(e).context("Failed to deserialize update"))
             }
         }
     }
@@ -126,6 +123,7 @@ impl TryFrom<Message> for BookUpdate {
 
 impl From<Snapshot> for BookUpdate {
     fn from(snapshot: Snapshot) -> Self {
+        println!("bitstamp ok123");
         Self {
             data: BookUpdateData {
                 last_update_id: snapshot.last_update_id,
@@ -133,24 +131,6 @@ impl From<Snapshot> for BookUpdate {
                 asks: snapshot.asks,
             },
         }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BestPrice {
-    pub bid: Decimal,
-    pub ask: Decimal,
-}
-
-impl BestPrice {
-    pub(super) async fn fetch(url: Url) -> Result<Self> {
-        let price = reqwest::get(url)
-            .await
-            .context("Failed to get price")?
-            .json::<Self>()
-            .await
-            .context("Failed to deserialize binance best price")?;
-        Ok(price)
     }
 }
 
@@ -177,12 +157,6 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
         )
     }
 
-    async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)> {
-        let url = Self::base_url_https().join(format!("ticker/{}", symbol.to_string().to_lowercase()).as_str())?;
-        let price = BestPrice::fetch(url).await?;
-        Ok((price.bid, price.ask))
-    }
-
     async fn get_snapshot(&self) -> Result<Snapshot> {
         let symbol = self.orderbook().lock().await.symbol.to_string().to_lowercase();
         let url = Self::base_url_https().join(format!("order_book/{}", symbol).as_str())?;
@@ -204,13 +178,30 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
             }
         });
 
-        let (mut stream, _) = connect_async(&Self::base_url_wss())
-            .await
-            .context("Failed to connect to bit stamp wss endpoint")?;
+        // let (mut stream, _) = connect_async(&Self::base_url_wss())
+        //     .await
+        //     .context("Failed to connect to bit stamp wss endpoint")?;
 
-        stream
-            .start_send_unpin(Message::Text(subscribe_msg.to_string()))
-            .context("Failed to send subscribe message to bitstamp")?;
+        // stream
+        //     .start_send_unpin(Message::Text(subscribe_msg.to_string()))
+        //     .context("Failed to send subscribe message to bitstamp")?;
+        let mut stream = match connect_async(&Self::base_url_wss()).await.context("Failed to connect to bit stamp wss endpoint") {
+            Ok((stream, _)) => stream,
+            Err(e) => {
+                eprintln!("Error: {:?}", e); // Print the error with its context
+                return Err(e);
+            }
+        };
+        
+        match stream.start_send_unpin(Message::Text(subscribe_msg.to_string())) {
+            Ok(_) => {
+                // Successfully sent the message.
+            },
+            Err(e) => {
+                eprintln!("Error: {:?}", e);  // Print the error with its context
+                return Err(e.into());
+            }
+        }
 
         Ok(stream)
     }

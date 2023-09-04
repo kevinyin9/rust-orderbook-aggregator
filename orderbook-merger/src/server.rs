@@ -54,9 +54,9 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
     let (tx4, rx4) = watch::channel(Ok(Summary::default()));
     drop(rx4);
 
-    tokio::spawn(async move {
-        binance_orderbook.start(tx).await.unwrap();
-    });
+    // tokio::spawn(async move {
+    //     binance_orderbook.start(tx).await.unwrap();
+    // });
     tokio::spawn(async move {
         bitstamp_orderbook.start(tx2).await.unwrap();
     });
@@ -68,7 +68,7 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
                 val = rx3.recv() => {
                     if let Some(oneshot_sender) = val {
                         oneshot_sender.send(tx4.subscribe()).unwrap();
-                        // tracing::info!("summary_count: {}, rx count: {}", summary_count, tx.receiver_count());
+                        tracing::info!("rx count: {}", tx4.receiver_count());
                     }
                 },
                 // Receive book levels from the order books.
@@ -81,13 +81,15 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
                             }
                             OrderBookOnlyLevels { exchange: ExchangeName::BINANCE, .. } => {
                                 exchange_to_orderbook.insert(ExchangeName::BINANCE, orderbook);
+                                // println!("exchange_to_orderbook: {:?}", exchange_to_orderbook);
                                 println!("binance!");
                             }
                         }
                         if exchange_to_orderbook.len() < 2 {
+                            println!("continue");
                             continue;
                         }
-                        // println!("merge");
+                        
                         // println!("{:?}", exchange_to_orderbook.values()); // 
                         // println!("{:?}", exchange_to_orderbook.values().len()); // 2
                         // Book levels are stored in the hashmap above and a new summary created from both exchanges
@@ -108,6 +110,12 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let subscriber = tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_max_level(tracing::Level::DEBUG)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let config = Config::builder()
         // read the setting.toml
         .add_source(config::File::with_name("orderbook-merger/src/setting"))
