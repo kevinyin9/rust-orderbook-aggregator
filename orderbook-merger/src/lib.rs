@@ -103,7 +103,24 @@ pub fn make_summary(mut book_levels_vec: Vec<OrderBookOnlyLevels>, symbol: Symbo
         asks.append(&mut book_levels_vec[i].asks);
     }
     // println!("bids lentgh: {}", bids.len());
-    
+    // Sort bids: descending by price, then descending by quantity for equal prices
+    bids.sort_unstable_by(|a, b| {
+        a.price
+            .partial_cmp(&b.price)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .reverse()
+            .then(a.quantity.partial_cmp(&b.quantity).unwrap_or(std::cmp::Ordering::Equal).reverse())
+    });
+
+    // Sort asks: ascending by price, then descending by quantity for equal prices
+    asks.sort_unstable_by(|a, b| {
+        a.price
+            .partial_cmp(&b.price)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.quantity.partial_cmp(&b.quantity).unwrap_or(std::cmp::Ordering::Equal).reverse())
+    });
+
+
     // bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
     // asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
     // println!("bids : {:?}", bids);
