@@ -18,5 +18,5 @@ message Summary {
 message Level {
   string exchange = 1;
   double price = 2;
-  double amount = 3;
+  double quantity = 3;
 }

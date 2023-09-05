@@ -39,13 +39,20 @@ pub trait Exchange<
     where
         Self: Sized;
 
-    async fn new_orderbook(exchange: ExchangeName, symbol: Symbol)  -> Result<OrderBook>
+    async fn new_orderbook(
+        exchange: ExchangeName,
+        symbol: Symbol
+    ) -> Result<OrderBook>
     where
         Self: Sized,
     {
+        let (price_scale, quantity_scale) = Self::get_scales(&symbol).await?;
+
         let orderbook = OrderBook::new_orderbook(
             exchange,
-            symbol
+            symbol,
+            price_scale,
+            quantity_scale,
         );
 
         tracing::debug!(
@@ -56,6 +63,7 @@ pub trait Exchange<
         Ok(orderbook)
     }
 
+    async fn get_scales(symbol: &Symbol) -> Result<(u32, u32)>;
     async fn get_snapshot(&self) -> Result<S>;
     async fn get_websocket_stream(&self) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 

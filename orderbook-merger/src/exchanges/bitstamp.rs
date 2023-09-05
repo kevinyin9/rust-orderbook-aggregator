@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use crate::orderbook::orderbook::{OrderBook, Update};
+use crate::{DisplayAmount, Symbol, ExchangeName, orderbook::orderbook::{OrderBook, Update}};
 use super::exchange::Exchange;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
@@ -11,7 +11,6 @@ use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use async_trait::async_trait;
 use url::Url;
-use crate::{Symbol, ExchangeName};
 use tokio::net::TcpStream;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use tokio_tungstenite::{tungstenite::Message, connect_async, MaybeTlsStream, WebSocketStream};
@@ -31,6 +30,14 @@ where
         }
     }
     Ok(map)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct SymbolData {
+    pub url_symbol: String,
+    pub base_decimals: u32,
+    pub counter_decimals: u32,
+    pub instant_order_counter_decimals: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -82,9 +89,9 @@ pub struct BookUpdateData {
     )]
     pub last_update_id: u64,
     #[serde(alias = "b", deserialize_with = "from_str")]
-    pub bids: BTreeMap<Decimal, Decimal>,
+    pub bids: BTreeMap<DisplayAmount, DisplayAmount>,
     #[serde(alias = "a", deserialize_with = "from_str")]
-    pub asks: BTreeMap<Decimal, Decimal>,
+    pub asks: BTreeMap<DisplayAmount, DisplayAmount>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -99,11 +106,11 @@ impl Update for BookUpdate {
     fn last_update_id(&self) -> u64 {
         self.data.last_update_id
     }
-    fn bids_mut(&mut self) -> &mut BTreeMap<Decimal, Decimal> {
+    fn bids_mut(&mut self) -> &mut BTreeMap<DisplayAmount, DisplayAmount> {
         &mut self.data.bids
     }
 
-    fn asks_mut(&mut self) -> &mut BTreeMap<Decimal, Decimal> {
+    fn asks_mut(&mut self) -> &mut BTreeMap<DisplayAmount, DisplayAmount> {
         &mut self.data.asks
     }
 }
@@ -155,6 +162,29 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
                 orderbook: Arc::new(Mutex::new(orderbook))
             }
         )
+    }
+
+    async fn get_scales(symbol: &Symbol) -> Result<(u32, u32)> {
+        let url = Self::base_url_https();
+        let endpoint = url.join("trading-pairs-info").unwrap();
+        
+        let symbols = reqwest::get(endpoint)
+            .await
+            .context("Failed to get exchange info")?
+            .json::<Vec<SymbolData>>()
+            .await
+            .context("Failed to deserialize exchange info to json")?;
+
+        let symbol = symbols
+            .into_iter()
+            .filter(|s| s.url_symbol == symbol.to_string().to_lowercase())
+            .next()
+            .context("Failed to get symbol")?;
+
+        let price_scale = symbol.counter_decimals;
+        let quantity_scale = symbol.base_decimals;
+
+        Ok((price_scale, quantity_scale))
     }
 
     async fn get_snapshot(&self) -> Result<Snapshot> {
