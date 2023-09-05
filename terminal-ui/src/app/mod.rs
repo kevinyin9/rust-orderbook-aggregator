@@ -64,7 +64,7 @@ impl App {
     pub async fn dispatch(&mut self, action: IoEvent) {
         // `is_loading` will be set to false again after the async action has finished in io/handler.rs
         self.is_loading = true;
-        if let Err(_) = self.io_tx.send(action).await {
+        if self.io_tx.send(action).await.is_err() {
             self.is_loading = false;
         };
     }

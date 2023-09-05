@@ -38,7 +38,7 @@ pub async fn start_ui(
         let mut app = app.lock().await;
 
         // Render
-        terminal.draw(|rect| ui::draw(rect, &app, &"BTCUSDT".to_string(), 4))?;
+        terminal.draw(|rect| ui::draw(rect, &app, "BTCUSDT", 4))?;
 
         // Handle inputs
         let result = match events.next().await {

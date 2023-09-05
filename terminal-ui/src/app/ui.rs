@@ -11,7 +11,7 @@ use ratatui::Frame;
 use super::state::AppState;
 use crate::app::App;
 
-pub fn draw<B>(rect: &mut Frame<B>, app: &App, symbol: &String, decimals: u32)
+pub fn draw<B>(rect: &mut Frame<B>, app: &App, symbol: &str, decimals: u32)
 where
     B: Backend,
 {
@@ -32,7 +32,7 @@ where
         .split(size);
 
     // Title
-    let title = draw_title(symbol.clone());
+    let title = draw_title(symbol.to_string());
     rect.render_widget(title, chunks[0]);
 
     // Body & Help

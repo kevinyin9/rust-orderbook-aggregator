@@ -28,10 +28,10 @@ pub trait Exchange<
     const BASE_URL_WSS: &'static str;
 
     fn base_url_https() -> Url {
-        Url::parse(&Self::BASE_URL_HTTPS).unwrap()
+        Url::parse(Self::BASE_URL_HTTPS).unwrap()
     }
     fn base_url_wss() -> Url {
-        Url::parse(&Self::BASE_URL_WSS).unwrap()
+        Url::parse(Self::BASE_URL_WSS).unwrap()
     }
     fn orderbook(&self) -> Arc<Mutex<OrderBook>>;
 
@@ -117,11 +117,9 @@ pub trait Exchange<
                     symbol,
                     err
                 );
-            } else {
-                if let Some(book_levels) = ob.get_book_levels() {
-                    println!("{} send", exchange);
-                    tx_summary.send(book_levels.clone()).await.unwrap();
-                }
+            } else if let Some(book_levels) = ob.get_book_levels() {
+                println!("{} send", exchange);
+                tx_summary.send(book_levels.clone()).await.unwrap();
             }
         }
         let _ = fetcher.await?;

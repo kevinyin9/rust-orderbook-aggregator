@@ -185,7 +185,7 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
         // stream
         //     .start_send_unpin(Message::Text(subscribe_msg.to_string()))
         //     .context("Failed to send subscribe message to bitstamp")?;
-        let mut stream = match connect_async(&Self::base_url_wss()).await.context("Failed to connect to bit stamp wss endpoint") {
+        let mut stream = match connect_async(&Self::base_url_wss()).await.context("Failed to connect to bitstamp wss endpoint") {
             Ok((stream, _)) => stream,
             Err(e) => {
                 eprintln!("Error: {:?}", e); // Print the error with its context

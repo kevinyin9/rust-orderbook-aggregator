@@ -5,7 +5,7 @@ use tokio_stream::wrappers::WatchStream;
 use tonic::{transport::Server, Request, Response, Status};
 use orderbook_merger::{
     orderbook::orderbook::OrderBookOnlyLevels,
-    exchange::{exchange::Exchange, binance::Binance, bitstamp::Bitstamp},
+    exchanges::{exchange::Exchange, binance::Binance, bitstamp::Bitstamp},
     orderbook_summary::{
         orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
         Empty, Summary,

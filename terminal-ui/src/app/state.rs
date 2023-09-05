@@ -56,7 +56,7 @@ impl AppState {
 
     pub fn get_summary(&self) -> Option<&Summary> {
         if let Self::Initialized { summary, .. } = self {
-            Some(&summary)
+            Some(summary)
         } else {
             None
         }
