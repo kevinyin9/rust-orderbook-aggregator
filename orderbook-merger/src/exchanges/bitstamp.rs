@@ -118,10 +118,15 @@ impl Update for BookUpdate {
 impl TryFrom<Message> for BookUpdate {
     type Error = anyhow::Error;
     fn try_from(item: Message) -> Result<Self> {
-        match serde_json::from_slice::<Self>(&item.into_data()) {
-            Ok(update) => Ok(update),
+        match serde_json::from_slice::<Self>(&item.clone().into_data()) { // remove clone
+            Ok(update) => {
+                tracing::debug!("original: {:?}", &item.clone().into_text());
+                tracing::debug!("update: {:?}", update);
+                Ok(update)
+            },
             Err(e) => {
                 tracing::error!("Failed to deserialize update: {}", e);
+                tracing::error!("{:?}", &item.clone().into_text());
                 Err(anyhow::Error::new(e).context("Failed to deserialize update"))
             }
         }
@@ -130,7 +135,6 @@ impl TryFrom<Message> for BookUpdate {
 
 impl From<Snapshot> for BookUpdate {
     fn from(snapshot: Snapshot) -> Self {
-        println!("bitstamp ok123");
         Self {
             data: BookUpdateData {
                 last_update_id: snapshot.last_update_id,
@@ -155,6 +159,8 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
         self.orderbook.clone()
     }
     async fn new_exchange(symbol: Symbol) -> Result<Self>
+    where
+        Self: Sized,
     {
         let orderbook = Self::new_orderbook(ExchangeName::BITSTAMP, symbol).await?;
         Ok(
@@ -201,6 +207,7 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
             .symbol
             .to_string()
             .to_lowercase();
+
         let subscribe_msg = serde_json::json!({
             "event": "bts:subscribe",
             "data": {
@@ -208,30 +215,13 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
             }
         });
 
-        // let (mut stream, _) = connect_async(&Self::base_url_wss())
-        //     .await
-        //     .context("Failed to connect to bit stamp wss endpoint")?;
+        let (mut stream, _) = connect_async(&Self::base_url_wss())
+            .await
+            .context("Failed to connect to bit stamp wss endpoint")?;
 
-        // stream
-        //     .start_send_unpin(Message::Text(subscribe_msg.to_string()))
-        //     .context("Failed to send subscribe message to bitstamp")?;
-        let mut stream = match connect_async(&Self::base_url_wss()).await.context("Failed to connect to bitstamp wss endpoint") {
-            Ok((stream, _)) => stream,
-            Err(e) => {
-                eprintln!("Error: {:?}", e); // Print the error with its context
-                return Err(e);
-            }
-        };
-        
-        match stream.start_send_unpin(Message::Text(subscribe_msg.to_string())) {
-            Ok(_) => {
-                // Successfully sent the message.
-            },
-            Err(e) => {
-                eprintln!("Error: {:?}", e);  // Print the error with its context
-                return Err(e.into());
-            }
-        }
+        stream
+            .start_send_unpin(Message::Text(subscribe_msg.to_string()))
+            .context("Failed to send subscribe message to bitstamp")?;
 
         Ok(stream)
     }

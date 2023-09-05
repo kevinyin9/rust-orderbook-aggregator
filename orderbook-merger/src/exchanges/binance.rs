@@ -40,6 +40,11 @@ pub(super) struct SymbolData {
     pub quote_asset_precision: u32,
     pub filters: Vec<Value>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ExchangeInfoBinance {
+    pub symbols: Vec<SymbolData>,
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -147,8 +152,8 @@ pub struct Binance {
 #[async_trait]
 impl Exchange<Snapshot, BookUpdate> for Binance {
 
-    const BASE_URL_HTTPS: &'static str = "https://www.binance.us/api/v3/";
-    const BASE_URL_WSS: &'static str = "wss://stream.binance.us:9443/ws/";
+    const BASE_URL_HTTPS: &'static str = "https://api.binance.com/api/v3/";
+    const BASE_URL_WSS: &'static str = "wss://stream.binance.com:9443/ws/";
 
     fn orderbook(&self) -> Arc<Mutex<OrderBook>> {
         self.orderbook.clone()
@@ -171,15 +176,18 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             .query_pairs_mut()
             .append_pair("symbol", &symbol.to_string())
             .finish();
-
+ 
         let exchange_info = reqwest::get(endpoint)
             .await
             .context("Failed to get exchange info")?
-            .json::<SymbolData>()
+            .json::<ExchangeInfoBinance>()
             .await
             .context("Failed to deserialize exchange info to json")?;
-        
+
         let tick_sizes = exchange_info
+            .symbols
+            .first()
+            .context("failed to get symbol")?
             .filters
             .iter()
             .filter_map(|filter| {
@@ -203,7 +211,11 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             .normalize()
             .scale();
 
-        let quantity_scale = exchange_info.base_asset_precision.min(8);
+        let quantity_scale = exchange_info.
+            symbols
+            .first()
+            .context("failed to get symbol")?
+            .base_asset_precision.min(8);
 
         Ok((price_scale, quantity_scale))
     }
@@ -226,7 +238,7 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             .symbol
             .to_string()
             .to_lowercase();
-        let endpoint = format!("{}@depth@100ms", symbol);
+        let endpoint = format!("{}@depth20@100ms", symbol);
         let url = Self::base_url_wss().join(&endpoint).unwrap();
         let (stream, _) = connect_async(url)
             .await

@@ -35,17 +35,11 @@ where
     let title = draw_title(symbol.to_string());
     rect.render_widget(title, chunks[0]);
 
-    // Body & Help
+    // Body
     let body_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
-            [
-                Constraint::Length(48),
-                Constraint::Min(20),
-                Constraint::Length(32),
-                Constraint::Length(32),
-            ]
-            .as_ref(),
+            [Constraint::Percentage(100)].as_ref(),
         )
         .split(chunks[1]);
 
@@ -92,7 +86,7 @@ fn draw_summary(state: &AppState, decimals: u32) -> Table {
                     Style::default().fg(Color::LightRed),
                 )),
                 Cell::from(Span::styled(
-                    format!("{:>10.5}", level.amount),
+                    format!("{:>10.5}", level.quantity),
                     help_style,
                 )),
                 Cell::from(Span::styled(&level.exchange, help_style)),
@@ -116,7 +110,7 @@ fn draw_summary(state: &AppState, decimals: u32) -> Table {
                     Style::default().fg(Color::LightGreen),
                 )),
                 Cell::from(Span::styled(
-                    format!("{:>10.5}", level.amount),
+                    format!("{:>10.5}", level.quantity),
                     help_style,
                 )),
                 Cell::from(Span::styled(&level.exchange, help_style)),

@@ -54,9 +54,9 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
     let (tx4, rx4) = watch::channel(Ok(Summary::default()));
     drop(rx4);
 
-    // tokio::spawn(async move {
-    //     binance_orderbook.start(tx).await.unwrap();
-    // });
+    tokio::spawn(async move {
+        binance_orderbook.start(tx).await.unwrap();
+    });
     tokio::spawn(async move {
         bitstamp_orderbook.start(tx2).await.unwrap();
     });
@@ -86,7 +86,7 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
                             }
                         }
                         if exchange_to_orderbook.len() < 2 {
-                            println!("continue");
+                            // println!("continue");
                             continue;
                         }
                         
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let orderbook_summary = OrderbookSummary {
-        summary: start(Symbol::BTCUSDT).await,
+        summary: start(Symbol::ETHUSDT).await,
     };
 
     let svc = OrderbookAggregatorServer::new(orderbook_summary);
