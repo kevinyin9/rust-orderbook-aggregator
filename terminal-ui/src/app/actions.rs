@@ -22,7 +22,7 @@ impl Action {
     /// List of key associated to action
     pub fn keys(&self) -> &[Key] {
         match self {
-            Action::Quit => &[Key::Ctrl('c'), Key::Char('q'), Key::Esc],
+            Action::Quit => &[Key::Ctrl('c')],
         }
     }
 }
@@ -75,23 +75,6 @@ impl From<Vec<Action>> for Actions {
                 }
             }
         }
-        let errors = map
-            .iter()
-            .filter(|(_, actions)| actions.len() > 1) // at least two actions share same shortcut
-            .map(|(key, actions)| {
-                let actions = actions
-                    .iter()
-                    .map(Action::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("Conflict key {} with actions {}", key, actions)
-            })
-            .collect::<Vec<_>>();
-        if !errors.is_empty() {
-            panic!("{}", errors.join("; "))
-        }
-
-        // Ok, we can create contextual actions
         Self(actions)
     }
 }
