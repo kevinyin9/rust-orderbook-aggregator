@@ -19,7 +19,9 @@ serde_json = "1.0.105"
 serde-aux = "4.2.0"
 tokio = { version = "1.31.0", features = ["full"] }
 tokio-stream = { version = "0.1.14", features = ["sync"] }
-tokio-tungstenite = { version = "0.20.0", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.19.0", features = ["native-tls"] }
 tonic = { version = "0.9.2" }
+tracing = { version = "0.1.37" }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 url = "2.4.0"
 tonic-build = { version = "0.9.2" }

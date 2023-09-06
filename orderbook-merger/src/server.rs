@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use tokio::{sync::mpsc, sync::oneshot, sync::watch, select};
 use tokio_stream::wrappers::WatchStream;
 use tonic::{transport::Server, Request, Response, Status};
-use rust_orderbook_merger::{
+use orderbook_merger::{
     orderbook::orderbook::OrderBookOnlyLevels,
-    exchange::{exchange::Exchange, binance::Binance, bitstamp::Bitstamp},
+    exchanges::{exchange::Exchange, binance::Binance, bitstamp::Bitstamp},
     orderbook_summary::{
         orderbook_aggregator_server::{OrderbookAggregator, OrderbookAggregatorServer},
         Empty, Summary,
@@ -68,29 +68,35 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
                 val = rx3.recv() => {
                     if let Some(oneshot_sender) = val {
                         oneshot_sender.send(tx4.subscribe()).unwrap();
-                        // tracing::info!("summary_count: {}, rx count: {}", summary_count, tx.receiver_count());
+                        tracing::info!("rx count: {}", tx4.receiver_count());
                     }
                 },
                 // Receive book levels from the order books.
                 val = rx.recv() => {
-                    if let Some(book_levels) = val {
-                        match book_levels {
+                    if let Some(orderbook) = val {
+                        match orderbook {
                             OrderBookOnlyLevels { exchange: ExchangeName::BITSTAMP, .. }  => {
-                                exchange_to_orderbook.insert(ExchangeName::BITSTAMP, book_levels);
-                                println!("binance!");
+                                exchange_to_orderbook.insert(ExchangeName::BITSTAMP, orderbook);
+                                println!("bitstamp!");
                             }
                             OrderBookOnlyLevels { exchange: ExchangeName::BINANCE, .. } => {
-                                exchange_to_orderbook.insert(ExchangeName::BINANCE, book_levels);
-                                println!("bitstamp!");
+                                exchange_to_orderbook.insert(ExchangeName::BINANCE, orderbook);
+                                // println!("exchange_to_orderbook: {:?}", exchange_to_orderbook);
+                                println!("binance!");
                             }
                         }
                         if exchange_to_orderbook.len() < 2 {
+                            // println!("continue");
                             continue;
                         }
-                        println!("going to merge?");
+                        
+                        // println!("{:?}", exchange_to_orderbook.values()); // 
+                        // println!("{:?}", exchange_to_orderbook.values().len()); // 2
                         // Book levels are stored in the hashmap above and a new summary created from both exchanges
                         // every time an update is received from either.
                         let current_levels = exchange_to_orderbook.values().map(|v| v.clone()).collect::<Vec<OrderBookOnlyLevels>>();
+                        // println!("{:?}", current_levels);
+                        // println!("current_levels len {:?}", current_levels.len());
                         let summary = make_summary(current_levels, symbol);
 
                         tx4.send_replace(Ok(summary)).unwrap();
@@ -104,16 +110,22 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let subscriber = tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_max_level(tracing::Level::DEBUG)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let config = Config::builder()
         // read the setting.toml
-        .add_source(config::File::with_name("src/setting"))
+        .add_source(config::File::with_name("orderbook-merger/src/setting"))
         .build()
         .unwrap()
         .try_deserialize::<HashMap<String, String>>()
         .unwrap();
 
     let orderbook_summary = OrderbookSummary {
-        summary: start(Symbol::BTCUSDT).await,
+        summary: start(Symbol::ETHUSDT).await,
     };
 
     let svc = OrderbookAggregatorServer::new(orderbook_summary);

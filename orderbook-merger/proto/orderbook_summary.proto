@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package orderbooksummary;
+package orderbook_summary;
 
 service OrderbookAggregator {
   rpc BookSummary(Empty) returns (stream Summary);
@@ -9,13 +9,14 @@ service OrderbookAggregator {
 message Empty {}
 
 message Summary {
-  double spread = 1;
-  repeated Level bids = 2;
-  repeated Level asks = 3;
+  string symbol = 1;
+  double spread = 2;
+  repeated Level bids = 3;
+  repeated Level asks = 4;
 }
 
 message Level {
   string exchange = 1;
   double price = 2;
-  double amount = 3;
+  double quantity = 3;
 }

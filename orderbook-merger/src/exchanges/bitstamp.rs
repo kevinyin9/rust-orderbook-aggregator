@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use crate::orderbook::orderbook::{OrderBook, Update};
+use crate::{DisplayAmount, Symbol, ExchangeName, orderbook::orderbook::{OrderBook, Update}};
 use super::exchange::Exchange;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
@@ -11,7 +11,6 @@ use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use async_trait::async_trait;
 use url::Url;
-use crate::{Symbol, ExchangeName};
 use tokio::net::TcpStream;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use tokio_tungstenite::{tungstenite::Message, connect_async, MaybeTlsStream, WebSocketStream};
@@ -33,8 +32,15 @@ where
     Ok(map)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct SymbolData {
+    pub url_symbol: String,
+    pub base_decimals: u32,
+    pub counter_decimals: u32,
+    pub instant_order_counter_decimals: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Snapshot {
     #[serde(
         alias = "microtimestamp",
@@ -76,7 +82,6 @@ impl Snapshot {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct BookUpdateData {
     #[serde(
         alias = "microtimestamp",
@@ -84,9 +89,9 @@ pub struct BookUpdateData {
     )]
     pub last_update_id: u64,
     #[serde(alias = "b", deserialize_with = "from_str")]
-    pub bids: BTreeMap<Decimal, Decimal>,
+    pub bids: BTreeMap<DisplayAmount, DisplayAmount>,
     #[serde(alias = "a", deserialize_with = "from_str")]
-    pub asks: BTreeMap<Decimal, Decimal>,
+    pub asks: BTreeMap<DisplayAmount, DisplayAmount>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -101,11 +106,11 @@ impl Update for BookUpdate {
     fn last_update_id(&self) -> u64 {
         self.data.last_update_id
     }
-    fn bids_mut(&mut self) -> &mut BTreeMap<Decimal, Decimal> {
+    fn bids_mut(&mut self) -> &mut BTreeMap<DisplayAmount, DisplayAmount> {
         &mut self.data.bids
     }
 
-    fn asks_mut(&mut self) -> &mut BTreeMap<Decimal, Decimal> {
+    fn asks_mut(&mut self) -> &mut BTreeMap<DisplayAmount, DisplayAmount> {
         &mut self.data.asks
     }
 }
@@ -113,14 +118,16 @@ impl Update for BookUpdate {
 impl TryFrom<Message> for BookUpdate {
     type Error = anyhow::Error;
     fn try_from(item: Message) -> Result<Self> {
-        match serde_json::from_slice::<Self>(&item.into_data()) {
+        match serde_json::from_slice::<Self>(&item.clone().into_data()) { // remove clone
             Ok(update) => {
-                // println!("bitstamp ok");
+                tracing::debug!("original: {:?}", &item.clone().into_text());
+                tracing::debug!("update: {:?}", update);
                 Ok(update)
             },
             Err(e) => {
-                // println!("bitstamp fuck");
-                Err(anyhow::Error::new(e).context("fuck"))
+                tracing::error!("Failed to deserialize update: {}", e);
+                tracing::error!("{:?}", &item.clone().into_text());
+                Err(anyhow::Error::new(e).context("Failed to deserialize update"))
             }
         }
     }
@@ -138,24 +145,6 @@ impl From<Snapshot> for BookUpdate {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct BestPrice {
-    pub bid: Decimal,
-    pub ask: Decimal,
-}
-
-impl BestPrice {
-    pub(super) async fn fetch(url: Url) -> Result<Self> {
-        let price = reqwest::get(url)
-            .await
-            .context("Failed to get price")?
-            .json::<Self>()
-            .await
-            .context("Failed to deserialize binance best price")?;
-        Ok(price)
-    }
-}
-
 pub struct Bitstamp {
     pub orderbook: Arc<Mutex<OrderBook>>,
 }
@@ -170,19 +159,38 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
         self.orderbook.clone()
     }
     async fn new_exchange(symbol: Symbol) -> Result<Self>
+    where
+        Self: Sized,
     {
-        let exchange_name = ExchangeName::BITSTAMP;
-        let orderbook = Self::new_orderbook(exchange_name, symbol).await?;
-        let binance = Self {
-            orderbook: Arc::new(Mutex::new(orderbook)),
-        };
-        Ok(binance)
+        let orderbook = Self::new_orderbook(ExchangeName::BITSTAMP, symbol).await?;
+        Ok(
+            Self {
+                orderbook: Arc::new(Mutex::new(orderbook))
+            }
+        )
     }
 
-    async fn get_tick_price(symbol: &Symbol) -> Result<(Decimal, Decimal)> {
-        let url = Self::base_url_https().join(format!("ticker/{}", symbol.to_string().to_lowercase()).as_str())?;
-        let price = BestPrice::fetch(url).await?;
-        Ok((price.bid, price.ask))
+    async fn get_scales(symbol: &Symbol) -> Result<(u32, u32)> {
+        let url = Self::base_url_https();
+        let endpoint = url.join("trading-pairs-info").unwrap();
+        
+        let symbols = reqwest::get(endpoint)
+            .await
+            .context("Failed to get exchange info")?
+            .json::<Vec<SymbolData>>()
+            .await
+            .context("Failed to deserialize exchange info to json")?;
+
+        let symbol = symbols
+            .into_iter()
+            .filter(|s| s.url_symbol == symbol.to_string().to_lowercase())
+            .next()
+            .context("Failed to get symbol")?;
+
+        let price_scale = symbol.counter_decimals;
+        let quantity_scale = symbol.base_decimals;
+
+        Ok((price_scale, quantity_scale))
     }
 
     async fn get_snapshot(&self) -> Result<Snapshot> {
@@ -199,6 +207,7 @@ impl Exchange<Snapshot, BookUpdate> for Bitstamp {
             .symbol
             .to_string()
             .to_lowercase();
+
         let subscribe_msg = serde_json::json!({
             "event": "bts:subscribe",
             "data": {
