@@ -130,7 +130,19 @@ impl Update for BookUpdate {
 impl TryFrom<Message> for BookUpdate {
     type Error = anyhow::Error;
     fn try_from(item: Message) -> Result<Self> {
-        serde_json::from_slice::<Self>(&item.into_data()).context("Failed to deserialize update")
+        // serde_json::from_slice::<Self>(&item.into_data()).context("Failed to deserialize update")
+        match serde_json::from_slice::<Self>(&item.clone().into_data()) { // remove clone
+            Ok(update) => {
+                tracing::debug!("original: {:?}", &item.clone().into_text());
+                tracing::debug!("update: {:?}", update);
+                Ok(update)
+            },
+            Err(e) => {
+                tracing::error!("Failed to deserialize update: {}", e);
+                tracing::error!("{:?}", &item.clone().into_text());
+                Err(anyhow::Error::new(e).context("Failed to deserialize update"))
+            }
+        }
     }
 }
 
@@ -238,7 +250,7 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             .symbol
             .to_string()
             .to_lowercase();
-        let endpoint = format!("{}@depth20@100ms", symbol);
+        let endpoint = format!("{}@depth@100ms", symbol);
         let url = Self::base_url_wss().join(&endpoint).unwrap();
         let (stream, _) = connect_async(url)
             .await

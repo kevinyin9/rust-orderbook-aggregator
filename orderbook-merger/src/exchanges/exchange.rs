@@ -9,7 +9,7 @@ use tokio::{
     sync::{mpsc, Mutex},
     task::JoinHandle,
 };
-use std::sync::Arc;
+use std::{thread, time::Duration, sync::Arc};
 use crate::{Symbol, ExchangeName};
 
 #[async_trait]
@@ -71,6 +71,7 @@ pub trait Exchange<
         let (tx_update, mut rx_update) = mpsc::channel::<U>(100);
 
         let mut websocket_stream = self.get_websocket_stream().await?;
+        thread::sleep(Duration::from_millis(1000));
         let snapshot = self.get_snapshot().await?;
         let snapshot_update = U::from(snapshot);
 

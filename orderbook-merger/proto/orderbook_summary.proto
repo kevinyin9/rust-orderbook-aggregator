@@ -9,10 +9,9 @@ service OrderbookAggregator {
 message Empty {}
 
 message Summary {
-  string symbol = 1;
-  double spread = 2;
-  repeated Level bids = 3;
-  repeated Level asks = 4;
+  double spread = 1;
+  repeated Level bids = 2;
+  repeated Level asks = 3;
 }
 
 message Level {

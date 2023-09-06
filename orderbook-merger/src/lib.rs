@@ -85,14 +85,7 @@ impl std::fmt::Display for ExchangeName {
     }
 }
 
-/// Returns a single summary of order book data aggregated from multiple exchanges
-///
-/// # Arguments
-///
-/// * `book_levels_vec` - A vector of [BookLevels] structs from multiple exchanges
-/// * `symbol` - The symbol the order book data is for
-// TODO: Remove symbol argument and get from BookLevels
-pub fn make_summary(mut book_levels_vec: Vec<OrderBookOnlyLevels>, symbol: Symbol) -> Summary {
+pub fn make_summary(mut book_levels_vec: Vec<OrderBookOnlyLevels>) -> Summary {
     let levels_count = book_levels_vec[0].bids.len();
     let exchange_count = book_levels_vec.len();
 
@@ -102,7 +95,7 @@ pub fn make_summary(mut book_levels_vec: Vec<OrderBookOnlyLevels>, symbol: Symbo
         bids.append(&mut book_levels_vec[i].bids);
         asks.append(&mut book_levels_vec[i].asks);
     }
-    // println!("bids lentgh: {}", bids.len());
+
     // Sort bids: descending by price, then descending by quantity for equal prices
     bids.sort_unstable_by(|a, b| {
         a.price
@@ -120,15 +113,12 @@ pub fn make_summary(mut book_levels_vec: Vec<OrderBookOnlyLevels>, symbol: Symbo
             .then(a.quantity.partial_cmp(&b.quantity).unwrap_or(std::cmp::Ordering::Equal).reverse())
     });
 
-
     // bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
     // asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-    // println!("bids : {:?}", bids);
     let take_bids = bids.into_iter().take(levels_count).collect::<Vec<Level>>();
     let take_asks = asks.into_iter().take(levels_count).collect::<Vec<Level>>();
-    // println!("spread : {:?} {:?}", take_bids[0].price, take_asks[0].price);
+
     Summary {
-        symbol: symbol.to_string(),
         spread: take_asks[0].price - take_bids[0].price,
         bids: take_bids,
         asks: take_asks,

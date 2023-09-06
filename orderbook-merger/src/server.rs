@@ -97,7 +97,7 @@ async fn start(symbol: Symbol) -> mpsc::Sender::<oneshot::Sender<watch::Receiver
                         let current_levels = exchange_to_orderbook.values().map(|v| v.clone()).collect::<Vec<OrderBookOnlyLevels>>();
                         // println!("{:?}", current_levels);
                         // println!("current_levels len {:?}", current_levels.len());
-                        let summary = make_summary(current_levels, symbol);
+                        let summary = make_summary(current_levels);
 
                         tx4.send_replace(Ok(summary)).unwrap();
                     }
