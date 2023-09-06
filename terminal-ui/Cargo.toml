@@ -5,6 +5,7 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
+config = { workspace = true }
 crossterm = "0.26.1"
 orderbook-merger = {path = "../orderbook-merger" }
 ratatui = { version = "0.22.0", features = ["all-widgets"]}

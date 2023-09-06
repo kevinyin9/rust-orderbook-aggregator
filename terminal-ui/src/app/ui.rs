@@ -11,7 +11,7 @@ use ratatui::Frame;
 use super::state::AppState;
 use crate::app::App;
 
-pub fn draw<B>(rect: &mut Frame<B>, app: &App, symbol: &str, decimals: u32)
+pub fn draw<B>(rect: &mut Frame<B>, app: &App, decimals: u32)
 where
     B: Backend,
 {
@@ -24,7 +24,6 @@ where
         .constraints(
             [
                 Constraint::Length(3),
-                Constraint::Min(10),
                 Constraint::Length(12),
             ]
             .as_ref(),
@@ -32,11 +31,11 @@ where
         .split(size);
 
     // Title
-    let title = draw_title(symbol.to_string());
+    let title = draw_title();
     rect.render_widget(title, chunks[0]);
 
     // Body
-    let body_chunks = Layout::default()
+    let body = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
             [Constraint::Percentage(100)].as_ref(),
@@ -44,12 +43,12 @@ where
         .split(chunks[1]);
 
     let summary = draw_summary(app.state(), decimals);
-    rect.render_widget(summary, body_chunks[0]);
+    rect.render_widget(summary, body[0]);
 
 }
 
-fn draw_title<'a>(symbol: String) -> Paragraph<'a> {
-    Paragraph::new(format!("Orderbook Summary: {}", symbol))
+fn draw_title<'a>() -> Paragraph<'a> {
+    Paragraph::new(format!("Orderbook Summary"))
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center)
         .block(
@@ -61,11 +60,11 @@ fn draw_title<'a>(symbol: String) -> Paragraph<'a> {
 }
 
 fn check_size(rect: &Rect) {
-    if rect.width < 52 {
-        panic!("Require width >= 52, (got {})", rect.width);
+    if rect.width < 20 {
+        panic!("Require width >= 20, (got {})", rect.width);
     }
-    if rect.height < 28 {
-        panic!("Require height >= 28, (got {})", rect.height);
+    if rect.height < 15 {
+        panic!("Require height >= 15, (got {})", rect.height);
     }
 }
 

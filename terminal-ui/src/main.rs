@@ -1,6 +1,5 @@
-use std::sync::Arc;
-use std::io::stdout;
-
+use std::{sync::Arc, io::stdout, collections::HashMap};
+use config::Config;
 use anyhow::Result;
 use terminal_ui::app::{App, AppReturn};
 use terminal_ui::inputs::{events::Events, InputEvent};
@@ -21,10 +20,18 @@ pub async fn start_ui(
     terminal.clear()?;
     terminal.hide_cursor()?;
 
+    let config = Config::builder()
+        // read the setting.toml
+        .add_source(config::File::with_name("orderbook-merger/src/setting"))
+        .build()
+        .unwrap()
+        .try_deserialize::<HashMap<String, String>>()
+        .unwrap();
+
+    let address = format!("https://{}:{}", config.get("server-ip").unwrap(), config.get("server-port").unwrap());
+
     let client: OrderbookAggregatorClient<tonic::transport::Channel> =
-        OrderbookAggregatorClient::connect("http://127.0.0.1:5555").await?;
-    // let decimals = summary_request.decimals;
-    // let symbol = summary_request.symbol.clone();
+        OrderbookAggregatorClient::connect(address).await?;
     let mut events = Events::new(client);
 
     // Trigger state change from Init to Initialized
@@ -38,7 +45,7 @@ pub async fn start_ui(
         let mut app = app.lock().await;
 
         // Render
-        terminal.draw(|rect| ui::draw(rect, &app, "BTCUSDT", 4))?;
+        terminal.draw(|rect| ui::draw(rect, &app, 4))?;
 
         // Handle inputs
         let result = match events.next().await {
