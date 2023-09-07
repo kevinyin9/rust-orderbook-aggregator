@@ -52,24 +52,12 @@ impl OrderBook {
         }
     }
 
-    pub fn display_price(&self, price: StorageAmount) -> Result<DisplayAmount> {
-        price.to_display(self.price_scale)
-    }
-    fn storage_price(&self, price: DisplayAmount) -> Result<StorageAmount> {
-        price.to_storage(self.price_scale)
-    }
-    pub fn display_quantity(&self, quantity: StorageAmount) -> Result<DisplayAmount> {
-        quantity.to_display(self.quantity_scale)
-    }
-    fn storage_quantity(&self, quantity: DisplayAmount) -> Result<StorageAmount> {
-        quantity.to_storage(self.quantity_scale)
-    }
-    fn storage_level_to_display_level(&self, storage_level: [StorageAmount; 2]) -> Result<Level> {
-        let price = (self.display_price(storage_level[0])?.to_f64().unwrap()
+    fn storage_to_display(&self, storage_level: [StorageAmount; 2]) -> Result<Level> {
+        let price = (storage_level[0].to_display(self.price_scale)?.to_f64().unwrap()
             * 10u32.pow(self.price_scale) as f64)
             .round()
             / 10u32.pow(self.price_scale) as f64;
-        let quantity = (self.display_quantity(storage_level[1])?.to_f64().unwrap()
+        let quantity = (storage_level[1].to_display(self.quantity_scale)?.to_f64().unwrap()
             * 10u32.pow(self.quantity_scale) as f64)
             .round()
             / 10u32.pow(self.quantity_scale) as f64;
@@ -99,8 +87,8 @@ impl OrderBook {
     }
     
     pub fn add_bid(&mut self, level: [Decimal; 2]) -> Result<()> {
-        let price = self.storage_price(level[0])?;
-        let quantity = self.storage_quantity(level[1])?;
+        let price = level[0].to_storage(self.price_scale)?;
+        let quantity = level[1].to_storage(self.quantity_scale)?;
         
         let bids = self.bids_mut();
         if quantity > 0 {
@@ -113,8 +101,8 @@ impl OrderBook {
     }
 
     pub fn add_ask(&mut self, level: [Decimal; 2]) -> Result<()> {
-        let price = self.storage_price(level[0])?;
-        let quantity = self.storage_quantity(level[1])?;
+        let price = level[0].to_storage(self.price_scale)?;
+        let quantity = level[1].to_storage(self.quantity_scale)?;
 
         let asks = self.asks_mut();
         if quantity > 0 {
@@ -133,7 +121,7 @@ impl OrderBook {
         } else {
             let mut summary_bids = Vec::<Level>::with_capacity(10);
             for (&price, &quantity) in bids.iter().rev().take(10) {
-                let level = self.storage_level_to_display_level([price, quantity])?;
+                let level = self.storage_to_display([price, quantity])?;
                 summary_bids.push(level);
             }
             summary_bids
@@ -147,7 +135,7 @@ impl OrderBook {
         } else {
             let mut summary_asks = Vec::<Level>::with_capacity(10);
             for (&price, &quantity) in asks.iter().take(10) {
-                let level = self.storage_level_to_display_level([price, quantity])?;
+                let level = self.storage_to_display([price, quantity])?;
                 summary_asks.push(level);
             }
             summary_asks

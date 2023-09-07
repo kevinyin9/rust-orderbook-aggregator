@@ -12,12 +12,21 @@ pub mod orderbook_summary {
 }
 
 pub type DisplayAmount = Decimal;
+pub trait ToDisplay {
+    fn to_display(&self, scale: u32) -> Result<DisplayAmount>;
+}
+
+pub type StorageAmount = u64;
+pub trait ToStorage {
+    fn to_storage(&self, scale: u32) -> Result<StorageAmount>;
+}
+
 impl ToStorage for DisplayAmount {
     fn to_storage(&self, scale: u32) -> Result<StorageAmount> {
         display_to_storage(*self, scale)
     }
 }
-pub type StorageAmount = u64;
+
 impl ToDisplay for StorageAmount {
     fn to_display(&self, scale: u32) -> Result<DisplayAmount> {
         let mut display_price = Decimal::from(*self);
@@ -32,6 +41,7 @@ pub fn display_to_storage(mut display_quantity: Decimal, scale: u32) -> Result<S
         "quantity sign must be positive"
     );
 
+    // Returns a new Decimal number with the specific decimal points for fractional portion.
     display_quantity = display_quantity.round_dp(scale);
     display_quantity.set_scale(0)?;
 
@@ -44,14 +54,6 @@ pub fn display_to_storage(mut display_quantity: Decimal, scale: u32) -> Result<S
     }
     Ok(storage)
 }
-
-pub trait ToDisplay {
-    fn to_display(&self, scale: u32) -> Result<DisplayAmount>;
-}
-pub trait ToStorage {
-    fn to_storage(&self, scale: u32) -> Result<StorageAmount>;
-}
-
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub enum Symbol {
