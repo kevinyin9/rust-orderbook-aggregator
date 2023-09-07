@@ -8,10 +8,9 @@ use ratatui::widgets::{
 };
 use ratatui::Frame;
 
-use super::state::AppState;
-use crate::app::App;
+use orderbook_merger::orderbook_summary::Summary;
 
-pub fn draw<B>(rect: &mut Frame<B>, app: &App, decimals: u32)
+pub fn draw<B>(rect: &mut Frame<B>, summary: &Summary, decimals: u32)
 where
     B: Backend,
 {
@@ -42,13 +41,13 @@ where
         )
         .split(chunks[1]);
 
-    let summary = draw_summary(app.state(), decimals);
+    let summary = draw_summary(&summary, decimals);
     rect.render_widget(summary, body[0]);
 
 }
 
 fn draw_title<'a>() -> Paragraph<'a> {
-    Paragraph::new(format!("Orderbook Summary"))
+    Paragraph::new("Orderbook Summary".to_owned())
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center)
         .block(
@@ -68,7 +67,7 @@ fn check_size(rect: &Rect) {
     }
 }
 
-fn draw_summary(state: &AppState, decimals: u32) -> Table {
+fn draw_summary(summary: &Summary, decimals: u32) -> Table {
     let help_style = Style::default().fg(Color::Gray);
 
     let mut rows = vec![];
@@ -77,46 +76,45 @@ fn draw_summary(state: &AppState, decimals: u32) -> Table {
         Cell::from(Span::styled(format!("{:>10}", "Quantity"), help_style)),
         Cell::from(Span::styled("Exchange".to_string(), help_style)),
     ]));
-    if let Some(summary) = state.get_summary() {
-        for level in summary.asks.iter().rev() {
-            let row = Row::new(vec![
-                Cell::from(Span::styled(
-                    format!("{:>8.1$}", level.price, decimals as usize),
-                    Style::default().fg(Color::LightRed),
-                )),
-                Cell::from(Span::styled(
-                    format!("{:>10.5}", level.quantity),
-                    help_style,
-                )),
-                Cell::from(Span::styled(&level.exchange, help_style)),
-            ]);
-            rows.push(row);
-        }
-        rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
-        rows.push(Row::new(vec![
+
+    for level in summary.asks.iter().rev() {
+        let row = Row::new(vec![
             Cell::from(Span::styled(
-                format!("{:>8.1$}", summary.spread, decimals as usize),
-                Style::default().fg(Color::LightYellow),
+                format!("{:>8.1$}", level.price, decimals as usize),
+                Style::default().fg(Color::LightRed),
             )),
-            Cell::from(Span::styled("".to_string(), help_style)),
-            Cell::from(Span::styled("".to_string(), help_style)),
-        ]));
-        rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
-        for level in summary.bids.iter() {
-            let row = Row::new(vec![
-                Cell::from(Span::styled(
-                    format!("{:>8.1$}", level.price, decimals as usize),
-                    Style::default().fg(Color::LightGreen),
-                )),
-                Cell::from(Span::styled(
-                    format!("{:>10.5}", level.quantity),
-                    help_style,
-                )),
-                Cell::from(Span::styled(&level.exchange, help_style)),
-            ]);
-            rows.push(row);
-        }
-    };
+            Cell::from(Span::styled(
+                format!("{:>10.5}", level.quantity),
+                help_style,
+            )),
+            Cell::from(Span::styled(&level.exchange, help_style)),
+        ]);
+        rows.push(row);
+    }
+    rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
+    rows.push(Row::new(vec![
+        Cell::from(Span::styled(
+            format!("{:>8.1$}", summary.spread, decimals as usize),
+            Style::default().fg(Color::LightYellow),
+        )),
+        Cell::from(Span::styled("".to_string(), help_style)),
+        Cell::from(Span::styled("".to_string(), help_style)),
+    ]));
+    rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
+    for level in summary.bids.iter() {
+        let row = Row::new(vec![
+            Cell::from(Span::styled(
+                format!("{:>8.1$}", level.price, decimals as usize),
+                Style::default().fg(Color::LightGreen),
+            )),
+            Cell::from(Span::styled(
+                format!("{:>10.5}", level.quantity),
+                help_style,
+            )),
+            Cell::from(Span::styled(&level.exchange, help_style)),
+        ]);
+        rows.push(row);
+    }
 
     Table::new(rows)
         .block(

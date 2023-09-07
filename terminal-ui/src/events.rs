@@ -5,7 +5,7 @@ use std::time::Duration;
 use orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tokio_stream::StreamExt;
 
-use super::key::Key;
+use super::Key;
 use super::InputEvent;
 
 /// A small event handler that wrap crossterm input and tick event. Each event
@@ -46,15 +46,11 @@ impl Events {
                         }
                     };
                 }
-                if let Err(err) = client_tx.send(InputEvent::Tick).await {
-                    println!("Error!, {}", err);
-                }
             }
         });
 
         tokio::spawn(async move {
             loop {
-                // poll for tick rate duration, if no event, sent tick event.
                 if crossterm::event::poll(Duration::from_millis(100)).unwrap() {
                     if let crossterm::event::Event::Key(key) = crossterm::event::read().unwrap() {
                         let key = Key::from(key);
@@ -79,7 +75,8 @@ impl Events {
 
     /// Attempts to read an event.
     pub async fn next(&mut self) -> InputEvent {
-        self.rx.recv().await.unwrap_or(InputEvent::Tick)
+        // self.rx.recv().await.unwrap_or(InputEvent::Tick)
+        self.rx.recv().await.unwrap()
     }
 
     /// Close

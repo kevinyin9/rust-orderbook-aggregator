@@ -1,17 +1,14 @@
 use std::{sync::Arc, io::stdout, collections::HashMap};
 use config::Config;
 use anyhow::Result;
-use terminal_ui::app::{App, AppReturn};
-use terminal_ui::inputs::{events::Events, InputEvent};
-use terminal_ui::app::ui;
-use terminal_ui::io::{IoEvent, handler::IoAsyncHandler};
 use orderbook_merger::orderbook_summary::orderbook_aggregator_client::OrderbookAggregatorClient;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
-pub async fn start_ui(
-    app: &Arc<tokio::sync::Mutex<App>>,
-) -> Result<()> {
+use orderbook_merger::orderbook_summary::Summary;
+use terminal_ui::{ui, events::Events, InputEvent, Key};
+
+pub async fn start_ui() -> Result<()> {
     // Configure Crossterm backend for tui
     let stdout = stdout();
     crossterm::terminal::enable_raw_mode()?;
@@ -33,31 +30,31 @@ pub async fn start_ui(
     let client: OrderbookAggregatorClient<tonic::transport::Channel> =
         OrderbookAggregatorClient::connect(address).await?;
     let mut events = Events::new(client);
-
-    // Trigger state change from Init to Initialized
-    {
-        let mut app = app.lock().await;
-        // Here we assume the the first load is a long task
-        app.dispatch(IoEvent::Initialize).await;
-    }
+    let summary = Summary {
+        spread: 0.0, 
+        bids: Vec::new(),
+        asks: Vec::new(),
+    };
+    let summary = Arc::new(tokio::sync::Mutex::new(summary));
 
     loop {
-        let mut app = app.lock().await;
-
+        let mut summary = summary.lock().await;
         // Render
-        terminal.draw(|rect| ui::draw(rect, &app, 4))?;
+        terminal.draw(|rect| ui::draw(rect, &summary, 4))?;
 
         // Handle inputs
-        let result = match events.next().await {
-            InputEvent::Input(key) => app.do_action(key).await,
-            InputEvent::Tick => app.update_on_tick().await,
-            InputEvent::Update(summary) => app.update_summary(summary).await,
+        match events.next().await {
+            InputEvent::Input(key) => {
+                if key == Key::Ctrl('c') {
+                    // exit
+                    events.close();
+                    break;
+                }
+            },
+            InputEvent::Update(new_summary) => {
+                *summary = new_summary;
+            },
         };
-        // Check if we should exit
-        if result == AppReturn::Exit {
-            events.close();
-            break;
-        }
     }
 
     // Restore the terminal and close application
@@ -70,21 +67,6 @@ pub async fn start_ui(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<IoEvent>(100);
-
-    // We need to share the App between thread
-    let app = Arc::new(tokio::sync::Mutex::new(App::new(sync_io_tx.clone())));
-    let app_ui = Arc::clone(&app);
-
-    // Handle IO in a specifc thread
-    tokio::spawn(async move {
-        let mut handler = IoAsyncHandler::new(app);
-        while let Some(io_event) = sync_io_rx.recv().await {
-            handler.handle_io_event(io_event).await;
-        }
-    });
-
-    start_ui(&app_ui).await?;
-
+    start_ui().await?;
     Ok(())
 }
