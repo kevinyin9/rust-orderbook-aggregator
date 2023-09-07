@@ -9,7 +9,6 @@ pub enum AppState {
     Initialized {
         duration: Duration,
         counter_sleep: u32,
-        counter_tick: u64,
         summary: Summary,
         datapoints_bid: Vec<f64>,
         datapoints_ask: Vec<f64>,
@@ -21,7 +20,6 @@ impl AppState {
     pub async fn initialized() -> Result<Self> {
         let duration = Duration::from_secs(1);
         let counter_sleep = 0;
-        let counter_tick = 0;
         let summary = Summary::default();
         let datapoints_bid = Vec::new();
         let datapoints_ask = Vec::new();
@@ -30,7 +28,6 @@ impl AppState {
         Ok(Self::Initialized {
             duration,
             counter_sleep,
-            counter_tick,
             summary,
             datapoints_bid,
             datapoints_ask,
@@ -38,21 +35,11 @@ impl AppState {
         })
     }
 
-    pub fn is_initialized(&self) -> bool {
-        matches!(self, &Self::Initialized { .. })
-    }
-
-    pub fn incr_sleep(&mut self) {
-        if let Self::Initialized { counter_sleep, .. } = self {
-            *counter_sleep += 1;
-        }
-    }
-
-    pub fn incr_tick(&mut self) {
-        if let Self::Initialized { counter_tick, .. } = self {
-            *counter_tick += 1;
-        }
-    }
+    // pub fn incr_sleep(&mut self) {
+    //     if let Self::Initialized { counter_sleep, .. } = self {
+    //         *counter_sleep += 1;
+    //     }
+    // }
 
     pub fn get_summary(&self) -> Option<&Summary> {
         if let Self::Initialized { summary, .. } = self {

@@ -56,7 +56,6 @@ impl App {
     /// We could update the app or dispatch event on tick
     pub async fn update_on_tick(&mut self) -> AppReturn {
         // here we just increment a counter
-        self.state.incr_tick();
         AppReturn::Continue
     }
 
@@ -86,9 +85,9 @@ impl App {
         self.is_loading = false;
     }
 
-    pub fn slept(&mut self) {
-        self.state.incr_sleep();
-    }
+    // pub fn slept(&mut self) {
+    //     self.state.incr_sleep();
+    // }
 
     pub async fn update_summary(&mut self, summary: Summary) -> AppReturn {
         self.state.update_summary(summary);

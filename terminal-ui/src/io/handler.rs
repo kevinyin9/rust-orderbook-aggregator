@@ -21,8 +21,6 @@ impl IoAsyncHandler {
     pub async fn handle_io_event(&mut self, io_event: IoEvent) {
         let result = match io_event {
             IoEvent::Initialize => self.do_initialize().await,
-            IoEvent::Sleep(duration) => self.do_sleep(duration).await,
-            IoEvent::Update(summary) => self.do_update(summary).await,
         };
 
         if let Err(err) = result {
@@ -43,14 +41,14 @@ impl IoAsyncHandler {
     }
 
     /// Just take a little break
-    async fn do_sleep(&mut self, duration: Duration) -> Result<()> {
-        tokio::time::sleep(duration).await;
-        // Notify the app for having slept
-        let mut app = self.app.lock().await;
-        app.slept();
+    // async fn do_sleep(&mut self, duration: Duration) -> Result<()> {
+    //     tokio::time::sleep(duration).await;
+    //     // Notify the app for having slept
+    //     let mut app = self.app.lock().await;
+    //     app.slept();
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     async fn do_update(&mut self, summary: Summary) -> Result<()> {
         let mut app = self.app.lock().await;
