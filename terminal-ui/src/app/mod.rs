@@ -1,13 +1,10 @@
 use anyhow::Result;
 
-use self::actions::Actions;
 use self::state::AppState;
 use crate::inputs::key::Key;
-use crate::app::actions::Action;
 use orderbook_merger::orderbook_summary::Summary;
 
 pub mod state;
-pub mod actions;
 pub mod ui;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,8 +15,6 @@ pub enum AppReturn {
 
 /// The main application, containing the state
 pub struct App {
-    /// Contextual actions
-    actions: Actions,
     /// State
     is_loading: bool,
     state: AppState,
@@ -27,23 +22,18 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let actions = vec![Action::Quit].into();
         let is_loading = false;
         let state = AppState::default();
 
         Self {
-            actions,
             is_loading,
             state,
         }
     }
 
-    /// Handle a user action
-    pub async fn do_action(&mut self, key: Key) -> AppReturn {
-        if let Some(action) = self.actions.find(key) {
-            match action {
-                Action::Quit => AppReturn::Exit,
-            }
+    pub async fn press_key(&mut self, key: Key) -> AppReturn {
+        if key == Key::Ctrl('c') {
+            AppReturn::Exit
         } else {
             AppReturn::Continue
         }
