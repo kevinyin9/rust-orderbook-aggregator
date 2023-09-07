@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
+// The `OrderBookOnlyLevels` struct represents an order book with bids and asks for a specific symbol
+// on an exchange.
 #[derive(Debug, Default, Clone)]
 pub struct OrderBookOnlyLevels {
     pub exchange: ExchangeName,
@@ -13,7 +15,8 @@ pub struct OrderBookOnlyLevels {
     pub last_update_id: u64,
 }
 
-/// Updates from all exchanges should implement this trait
+// The `Update` trait defines methods that should be implemented by types that represent
+// updates to an orderbook.
 pub trait Update {
     fn validate(&self, last_id: u64) -> Result<()>;
     fn last_update_id(&self) -> u64;
@@ -21,6 +24,7 @@ pub trait Update {
     fn asks_mut(&mut self) -> &mut BTreeMap<DisplayAmount, DisplayAmount>;
 }
 
+// The `OrderBook` struct represents an orderbook for a specific exchange and symbol.
 pub struct OrderBook {
     pub exchange: ExchangeName,
     pub symbol: Symbol,
@@ -32,6 +36,8 @@ pub struct OrderBook {
 }
 
 impl OrderBook {
+    // The `new_orderbook` function creates a new orderbook with empty bids and asks maps, and
+    // initializes other fields.
     pub fn new_orderbook(
         exchange: ExchangeName,
         symbol: Symbol,
@@ -52,6 +58,8 @@ impl OrderBook {
         }
     }
 
+    // The `storage_to_display` function takes in storage_level and converts them to
+    // a displayable format by rounding and scaling the price and quantity.
     fn storage_to_display(&self, storage_level: [StorageAmount; 2]) -> Result<Level> {
         let price = (storage_level[0].to_display(self.price_scale)?.to_f64().unwrap()
             * 10u32.pow(self.price_scale) as f64)
