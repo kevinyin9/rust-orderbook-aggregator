@@ -4,7 +4,6 @@ use anyhow::Result;
 use terminal_ui::app::{App, AppReturn};
 use terminal_ui::inputs::{events::Events, InputEvent};
 use terminal_ui::app::ui;
-use terminal_ui::io::{IoEvent, handler::IoAsyncHandler};
 use orderbook_merger::orderbook_summary::orderbook_aggregator_client::OrderbookAggregatorClient;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
@@ -37,8 +36,7 @@ pub async fn start_ui(
     // Trigger state change from Init to Initialized
     {
         let mut app = app.lock().await;
-        // Here we assume the the first load is a long task
-        app.dispatch(IoEvent::Initialize).await;
+        app.initialized().await?;
     }
 
     loop {
@@ -70,19 +68,8 @@ pub async fn start_ui(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (sync_io_tx, mut sync_io_rx) = tokio::sync::mpsc::channel::<IoEvent>(100);
-
-    // We need to share the App between thread
-    let app = Arc::new(tokio::sync::Mutex::new(App::new(sync_io_tx.clone())));
+    let app = Arc::new(tokio::sync::Mutex::new(App::new()));
     let app_ui = Arc::clone(&app);
-
-    // Handle IO in a specifc thread
-    tokio::spawn(async move {
-        let mut handler = IoAsyncHandler::new(app);
-        while let Some(io_event) = sync_io_rx.recv().await {
-            handler.handle_io_event(io_event).await;
-        }
-    });
 
     start_ui(&app_ui).await?;
 

@@ -35,12 +35,6 @@ impl AppState {
         })
     }
 
-    // pub fn incr_sleep(&mut self) {
-    //     if let Self::Initialized { counter_sleep, .. } = self {
-    //         *counter_sleep += 1;
-    //     }
-    // }
-
     pub fn get_summary(&self) -> Option<&Summary> {
         if let Self::Initialized { summary, .. } = self {
             Some(summary)
@@ -60,30 +54,6 @@ impl AppState {
             Some([datapoints_bid, datapoints_ask, datapoints_spread])
         } else {
             None
-        }
-    }
-
-    pub fn duration(&self) -> Option<&Duration> {
-        if let Self::Initialized { duration, .. } = self {
-            Some(duration)
-        } else {
-            None
-        }
-    }
-
-    pub fn increment_delay(&mut self) {
-        if let Self::Initialized { duration, .. } = self {
-            // Set the duration, note that the duration is in 1s..10s
-            let secs = (duration.as_secs() + 1).clamp(1, 10);
-            *duration = Duration::from_secs(secs);
-        }
-    }
-
-    pub fn decrement_delay(&mut self) {
-        if let Self::Initialized { duration, .. } = self {
-            // Set the duration, note that the duration is in 1s..10s
-            let secs = (duration.as_secs() - 1).clamp(1, 10);
-            *duration = Duration::from_secs(secs);
         }
     }
 
