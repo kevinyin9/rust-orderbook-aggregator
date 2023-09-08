@@ -1,12 +1,11 @@
 use std::{sync::Arc, io::stdout, collections::HashMap};
 use config::Config;
 use anyhow::Result;
-use terminal_ui::app::{App, AppReturn};
-use terminal_ui::inputs::{events::Events, InputEvent};
-use terminal_ui::app::ui;
 use orderbook_merger::orderbook_summary::orderbook_aggregator_client::OrderbookAggregatorClient;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+
+use terminal_ui::{App, ui, events::Events, InputEvent, key::Key};
 
 pub async fn start_ui(
     app: &Arc<tokio::sync::Mutex<App>>,
@@ -40,15 +39,18 @@ pub async fn start_ui(
         terminal.draw(|rect| ui::draw(rect, &app, 4))?;
 
         // Handle inputs
-        let result = match events.next().await {
-            InputEvent::Input(key) => app.press_key(key).await,
-            InputEvent::Update(summary) => app.update_summary(summary).await,
+        match events.next().await {
+            InputEvent::Input(key) => {
+                if key == Key::Ctrl('c') {
+                    // exit
+                    events.close();
+                    break;
+                }
+            },
+            InputEvent::Update(summary) => {
+                app.summary = summary;
+            },
         };
-        // Check if we should exit
-        if result == AppReturn::Exit {
-            events.close();
-            break;
-        }
     }
 
     // Restore the terminal and close application

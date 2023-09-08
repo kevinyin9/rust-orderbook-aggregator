@@ -9,7 +9,7 @@ use ratatui::widgets::{
 use ratatui::Frame;
 
 use orderbook_merger::orderbook_summary::Summary;
-use crate::app::App;
+use super::App;
 
 pub fn draw<B>(rect: &mut Frame<B>, app: &App, decimals: u32)
 where
