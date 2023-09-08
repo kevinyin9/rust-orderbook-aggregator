@@ -48,7 +48,7 @@ where
 }
 
 fn draw_title<'a>() -> Paragraph<'a> {
-    Paragraph::new(format!("Orderbook Summary"))
+    Paragraph::new("Orderbook Summary".to_owned())
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center)
         .block(

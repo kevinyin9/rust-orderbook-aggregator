@@ -33,10 +33,6 @@ impl App {
         }
     }
 
-    pub async fn update_on_tick(&mut self) -> AppReturn {
-        AppReturn::Continue
-    }
-
     pub fn summary(&self) -> &Summary {
         &self.summary
     }
@@ -44,5 +40,11 @@ impl App {
     pub async fn update_summary(&mut self, summary: Summary) -> AppReturn {
         self.summary = summary;
         AppReturn::Continue
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }

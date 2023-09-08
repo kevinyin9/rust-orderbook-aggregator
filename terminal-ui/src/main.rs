@@ -42,7 +42,6 @@ pub async fn start_ui(
         // Handle inputs
         let result = match events.next().await {
             InputEvent::Input(key) => app.press_key(key).await,
-            InputEvent::Tick => app.update_on_tick().await,
             InputEvent::Update(summary) => app.update_summary(summary).await,
         };
         // Check if we should exit
