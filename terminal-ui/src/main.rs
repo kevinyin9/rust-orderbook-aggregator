@@ -33,12 +33,6 @@ pub async fn start_ui(
         OrderbookAggregatorClient::connect(address).await?;
     let mut events = Events::new(client);
 
-    // Trigger state change from Init to Initialized
-    {
-        let mut app = app.lock().await;
-        app.initialized().await?;
-    }
-
     loop {
         let mut app = app.lock().await;
 
@@ -47,7 +41,7 @@ pub async fn start_ui(
 
         // Handle inputs
         let result = match events.next().await {
-            InputEvent::Input(key) => app.do_action(key).await,
+            InputEvent::Input(key) => app.press_key(key).await,
             InputEvent::Tick => app.update_on_tick().await,
             InputEvent::Update(summary) => app.update_summary(summary).await,
         };
