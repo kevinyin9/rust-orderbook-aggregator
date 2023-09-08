@@ -9,9 +9,8 @@ use ratatui::widgets::{
 use ratatui::Frame;
 
 use orderbook_merger::orderbook_summary::Summary;
-use super::App;
 
-pub fn draw<B>(rect: &mut Frame<B>, app: &App, decimals: u32)
+pub fn draw<B>(rect: &mut Frame<B>, summary: &Summary, decimals: u32)
 where
     B: Backend,
 {
@@ -42,7 +41,7 @@ where
         )
         .split(chunks[1]);
 
-    let summary = draw_summary(&app.summary, decimals);
+    let summary = draw_summary(&summary, decimals);
     rect.render_widget(summary, body[0]);
 
 }

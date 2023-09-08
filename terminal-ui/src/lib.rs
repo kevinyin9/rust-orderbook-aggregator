@@ -1,34 +1,33 @@
 pub mod ui;
 pub mod events;
-pub mod key;
 
 use orderbook_merger::orderbook_summary::Summary;
+use crossterm::event;
 
 pub enum InputEvent {
     /// An input event occurred.
-    Input(key::Key),
+    Input(Key),
     Update(Summary),
 }
 
-/// The main application, containing the summary
-pub struct App {
-    pub summary: Summary,
+// Represents an key.
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
+pub enum Key {
+    Char(char),
+    Ctrl(char),
+    Unknown
 }
 
-impl App {
-    pub fn new() -> Self {
-        Self {
-            summary: Summary {
-                spread: 0.0, 
-                bids: Vec::new(),
-                asks: Vec::new(),
-            }
+impl From<event::KeyEvent> for Key {
+    fn from(key_event: event::KeyEvent) -> Self {
+        match key_event {
+            event::KeyEvent {
+                code: event::KeyCode::Char(c),
+                modifiers: event::KeyModifiers::CONTROL,
+                ..
+            } => Key::Ctrl(c),
+
+            _ => Key::Unknown,
         }
-    }
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self::new()
     }
 }

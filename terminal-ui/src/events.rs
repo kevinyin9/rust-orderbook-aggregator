@@ -5,7 +5,7 @@ use std::time::Duration;
 use orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tokio_stream::StreamExt;
 
-use super::key::Key;
+use super::Key;
 use super::InputEvent;
 
 /// A small event handler that wrap crossterm input and tick event. Each event

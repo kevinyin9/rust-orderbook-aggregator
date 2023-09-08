@@ -5,11 +5,10 @@ use orderbook_merger::orderbook_summary::orderbook_aggregator_client::OrderbookA
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
-use terminal_ui::{App, ui, events::Events, InputEvent, key::Key};
+use orderbook_merger::orderbook_summary::Summary;
+use terminal_ui::{ui, events::Events, InputEvent, Key};
 
-pub async fn start_ui(
-    app: &Arc<tokio::sync::Mutex<App>>,
-) -> Result<()> {
+pub async fn start_ui() -> Result<()> {
     // Configure Crossterm backend for tui
     let stdout = stdout();
     crossterm::terminal::enable_raw_mode()?;
@@ -31,12 +30,17 @@ pub async fn start_ui(
     let client: OrderbookAggregatorClient<tonic::transport::Channel> =
         OrderbookAggregatorClient::connect(address).await?;
     let mut events = Events::new(client);
+    let summary = Summary {
+        spread: 0.0, 
+        bids: Vec::new(),
+        asks: Vec::new(),
+    };
+    let summary = Arc::new(tokio::sync::Mutex::new(summary));
 
     loop {
-        let mut app = app.lock().await;
-
+        let mut summary = summary.lock().await;
         // Render
-        terminal.draw(|rect| ui::draw(rect, &app, 4))?;
+        terminal.draw(|rect| ui::draw(rect, &summary, 4))?;
 
         // Handle inputs
         match events.next().await {
@@ -47,8 +51,8 @@ pub async fn start_ui(
                     break;
                 }
             },
-            InputEvent::Update(summary) => {
-                app.summary = summary;
+            InputEvent::Update(new_summary) => {
+                *summary = new_summary;
             },
         };
     }
@@ -63,10 +67,6 @@ pub async fn start_ui(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let app = Arc::new(tokio::sync::Mutex::new(App::new()));
-    let app_ui = Arc::clone(&app);
-
-    start_ui(&app_ui).await?;
-
+    start_ui().await?;
     Ok(())
 }
