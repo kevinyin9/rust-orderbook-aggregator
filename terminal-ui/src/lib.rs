@@ -5,7 +5,6 @@ use orderbook_merger::orderbook_summary::Summary;
 use crossterm::event;
 
 pub enum InputEvent {
-    /// An input event occurred.
     Input(Key),
     Update(Summary),
 }
@@ -18,6 +17,7 @@ pub enum Key {
     Unknown
 }
 
+// This impl allows us to convert a `KeyEvent` into a `Key` enum value.
 impl From<event::KeyEvent> for Key {
     fn from(key_event: event::KeyEvent) -> Self {
         match key_event {

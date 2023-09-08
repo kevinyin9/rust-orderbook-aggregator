@@ -184,10 +184,10 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
     async fn get_scales(symbol: &Symbol) -> Result<(u32, u32)> {
         let url = Self::base_url_https();
         let mut endpoint = url.join("exchangeInfo").unwrap();
+        
         endpoint
             .query_pairs_mut()
-            .append_pair("symbol", &symbol.to_string())
-            .finish();
+            .append_pair("symbol", &symbol.to_string());
  
         let exchange_info = reqwest::get(endpoint)
             .await
@@ -196,38 +196,43 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
             .await
             .context("Failed to deserialize exchange info to json")?;
 
-        let tick_sizes = exchange_info
+        let symbol_info = exchange_info
             .symbols
             .first()
             .context("failed to get symbol")?
+
+        let tick_size_str = symbol_info
             .filters
             .iter()
             .filter_map(|filter| {
                 let filter_obj = filter.as_object()?;
-                if let Some(filter_type) = filter["filterType"].as_str() {
-                    if filter_type == "PRICE_FILTER" {
-                        filter_obj["tickSize"].as_str()
-                    } else {
-                        None
-                    }
+                if filter_obj.get("filterType")?.as_str()? == "PRICE_FILTER" {
+                    filter_obj.get("tickSize")?.as_str()
                 } else {
                     None
                 }
+                // if let Some(filter_type) = filter["filterType"].as_str() {
+                //     if filter_type == "PRICE_FILTER" {
+                //         filter_obj["tickSize"].as_str()
+                //     } else {
+                //         None
+                //     }
+                // } else {
+                //     None
+                // }
             })
-            .collect::<Vec<&str>>();
+            .next()
+            .context("Failed to get tick size")?;
+            // .collect::<Vec<&str>>();
 
-        let tick_size_str = tick_sizes.first().context("Failed to get tick size")?;
+        // let tick_size_str = tick_sizes.first().context("Failed to get tick size")?;
 
         let price_scale = Decimal::from_str(tick_size_str)
             .context("Failed to parse tick size")?
             .normalize()
             .scale();
 
-        let quantity_scale = exchange_info.
-            symbols
-            .first()
-            .context("failed to get symbol")?
-            .base_asset_precision.min(8);
+        let quantity_scale = symbol_info.base_asset_precision.min(8);
 
         Ok((price_scale, quantity_scale))
     }
