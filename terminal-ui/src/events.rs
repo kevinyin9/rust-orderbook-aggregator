@@ -5,8 +5,7 @@ use std::time::Duration;
 use orderbook_merger::orderbook_summary::{orderbook_aggregator_client::OrderbookAggregatorClient, Empty};
 use tokio_stream::StreamExt;
 
-use super::Key;
-use super::InputEvent;
+use super::{Key, InputEvent};
 
 // The `Events` struct represents event channels for receiving and sending input and Update events, with
 // a mechanism to stop event.
@@ -34,19 +33,17 @@ impl Events {
             // sending them as `InputEvent::Update` through the `client_tx` channel.
             let request = tonic::Request::new(Empty {});
             let mut stream = client.book_summary(request).await.unwrap().into_inner();
-            loop {
-                if let Some(summary) = stream.next().await {
-                    match summary {
-                        Ok(summary) => {
-                            if let Err(err) = client_tx.send(InputEvent::Update(summary)).await {
-                                println!("Error!, {}", err);
-                            }
-                        }
-                        Err(err) => {
+            while let Some(summary) = stream.next().await {
+                match summary {
+                    Ok(summary) => {
+                        if let Err(err) = client_tx.send(InputEvent::Update(summary)).await {
                             println!("Error!, {}", err);
                         }
-                    };
-                }
+                    }
+                    Err(err) => {
+                        println!("Error!, {}", err);
+                    }
+                };
             }
         });
 
@@ -77,7 +74,6 @@ impl Events {
 
     // Attempts to read an event.
     pub async fn next(&mut self) -> InputEvent {
-        // self.rx.recv().await.unwrap_or(InputEvent::Tick)
         self.rx.recv().await.unwrap()
     }
 

@@ -1,5 +1,5 @@
 use ratatui::backend::Backend;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::Color;
 use ratatui::text::Span;
 use ratatui::prelude::*;
@@ -14,10 +14,6 @@ pub fn draw<B>(rect: &mut Frame<B>, summary: &Summary, decimals: u32)
 where
     B: Backend,
 {
-    let size = rect.size();
-    check_size(&size);
-
-    // Vertical layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -27,55 +23,37 @@ where
             ]
             .as_ref(),
         )
-        .split(size);
+        .split(rect.size());
 
     // Title
     let title = draw_title();
     rect.render_widget(title, chunks[0]);
 
-    // Body
-    let body = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [Constraint::Percentage(100)].as_ref(),
-        )
-        .split(chunks[1]);
-
-    let summary = draw_summary(&summary, decimals);
-    rect.render_widget(summary, body[0]);
-
+    // Summary
+    let summary_widget = draw_summary(&summary, decimals);
+    rect.render_widget(summary_widget, chunks[1]);
 }
 
 fn draw_title<'a>() -> Paragraph<'a> {
-    Paragraph::new("Orderbook Summary".to_owned())
-        .style(Style::default().fg(Color::White))
+    Paragraph::new("Orderbook Summary")
         .alignment(Alignment::Center)
         .block(
             Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::White))
-                .border_type(BorderType::Plain),
+                .borders(Borders::ALL),
         )
 }
 
-fn check_size(rect: &Rect) {
-    if rect.width < 20 {
-        panic!("Require width >= 20, (got {})", rect.width);
-    }
-    if rect.height < 15 {
-        panic!("Require height >= 15, (got {})", rect.height);
-    }
-}
-
 fn draw_summary(summary: &Summary, decimals: u32) -> Table {
-    let help_style = Style::default().fg(Color::Gray);
 
     let mut rows = vec![];
+
     rows.push(Row::new(vec![
-        Cell::from(Span::styled("Ask/Bid".to_string(), help_style)),
-        Cell::from(Span::styled(format!("{:>10}", "Quantity"), help_style)),
-        Cell::from(Span::styled("Exchange".to_string(), help_style)),
+        Cell::from("Ask/Bid"),
+        Cell::from(format!("{:>10}", "Quantity")),
+        Cell::from("Exchange"),
     ]));
+
+    rows.push(Row::new(vec![""; 3]));
 
     for level in summary.asks.iter().rev() {
         let row = Row::new(vec![
@@ -83,35 +61,33 @@ fn draw_summary(summary: &Summary, decimals: u32) -> Table {
                 format!("{:>8.1$}", level.price, decimals as usize),
                 Style::default().fg(Color::LightRed),
             )),
-            Cell::from(Span::styled(
-                format!("{:>10.5}", level.quantity),
-                help_style,
-            )),
-            Cell::from(Span::styled(&level.exchange, help_style)),
+            Cell::from(format!("{:>10.5}", level.quantity),),
+            Cell::from(&*level.exchange),
         ]);
         rows.push(row);
     }
-    rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
+
+    rows.push(Row::new(vec![""; 3]));
+
     rows.push(Row::new(vec![
         Cell::from(Span::styled(
             format!("{:>8.1$}", summary.spread, decimals as usize),
             Style::default().fg(Color::LightYellow),
         )),
-        Cell::from(Span::styled("".to_string(), help_style)),
-        Cell::from(Span::styled("".to_string(), help_style)),
+        Cell::from(""),
+        Cell::from(""),
     ]));
-    rows.push(Row::new(vec![Span::styled("".to_string(), help_style); 3]));
+
+    rows.push(Row::new(vec![""; 3]));
+
     for level in summary.bids.iter() {
         let row = Row::new(vec![
             Cell::from(Span::styled(
                 format!("{:>8.1$}", level.price, decimals as usize),
                 Style::default().fg(Color::LightGreen),
             )),
-            Cell::from(Span::styled(
-                format!("{:>10.5}", level.quantity),
-                help_style,
-            )),
-            Cell::from(Span::styled(&level.exchange, help_style)),
+            Cell::from(format!("{:>10.5}", level.quantity)),
+            Cell::from(&*level.exchange),
         ]);
         rows.push(row);
     }
@@ -120,8 +96,7 @@ fn draw_summary(summary: &Summary, decimals: u32) -> Table {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_type(BorderType::Plain)
-                .title("Orderbook Summary"),
+                .border_type(BorderType::Plain),
         )
         .widths(&[
             Constraint::Ratio(1, 3),

@@ -12,8 +12,7 @@ pub async fn start_ui() -> Result<()> {
     // Configure Crossterm backend for tui
     let stdout = stdout();
     crossterm::terminal::enable_raw_mode()?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
     terminal.clear()?;
     terminal.hide_cursor()?;
 
@@ -25,17 +24,15 @@ pub async fn start_ui() -> Result<()> {
         .try_deserialize::<HashMap<String, String>>()
         .unwrap();
 
-    let address = format!("https://{}:{}", config.get("server-ip").unwrap(), config.get("server-port").unwrap());
+    let address = format!("https://{}:{}", config["server-ip"], config["server-port"]);
 
-    let client: OrderbookAggregatorClient<tonic::transport::Channel> =
-        OrderbookAggregatorClient::connect(address).await?;
+    let client = OrderbookAggregatorClient::connect(address).await?;
     let mut events = Events::new(client);
-    let summary = Summary {
+    let summary = Arc::new(tokio::sync::Mutex::new(Summary {
         spread: 0.0, 
         bids: Vec::new(),
         asks: Vec::new(),
-    };
-    let summary = Arc::new(tokio::sync::Mutex::new(summary));
+    }));
 
     loop {
         let mut summary = summary.lock().await;
