@@ -199,7 +199,7 @@ impl Exchange<Snapshot, BookUpdate> for Binance {
         let symbol_info = exchange_info
             .symbols
             .first()
-            .context("failed to get symbol")?
+            .context("failed to get symbol")?;
 
         let tick_size_str = symbol_info
             .filters

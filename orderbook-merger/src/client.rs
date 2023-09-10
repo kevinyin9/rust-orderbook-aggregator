@@ -25,7 +25,7 @@ async fn get_orderbook_summary(mut client: OrderbookAggregatorClient<Channel>) -
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let config = Config::builder()
         // read the setting.toml
         .add_source(config::File::with_name("orderbook-merger/src/setting"))
