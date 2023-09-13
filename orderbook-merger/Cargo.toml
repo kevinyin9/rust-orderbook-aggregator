@@ -1,0 +1,39 @@
+[package]
+name = "orderbook-merger"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]] # Bin to run the gRPC server
+name = "server"
+path = "src/server.rs"
+
+[[bin]] # Bin to run the gRPC client
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+config = { workspace = true }
+futures = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+prost = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-aux = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tonic = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = {workspace = true}
+url = { workspace = true }
+tonic-build = { workspace = true }
+
+[build-dependencies]
+protobuf-json-mapping = "3.2.0"
+tonic-build = { version = "0.9.2", features = ["transport"] }
