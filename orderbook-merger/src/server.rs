@@ -30,24 +30,6 @@ impl OrderbookAggregator for OrderbookSummary {
     }
 }
 
-async fn fetch_orderbook_data(orderbook: impl Exchange<Snapshot, BookUpdate>, tx: mpsc::Sender<OrderBookOnlyLevels>) {
-// async fn fetch_orderbook_data<S, U>(
-//     orderbook: impl Exchange<S, U>,
-//     tx: mpsc::Sender<OrderBookOnlyLevels>
-// )
-// where
-//     S: Update + Send,
-//     U: std::fmt::Debug
-//         + Update
-//         + From<S>
-//         + TryFrom<Message, Error = anyhow::Error>
-//         + Send
-//         + Sync
-//         + 'static,
-// {   
-    orderbook.start(tx).await.unwrap();
-}
-
 async fn aggregate_and_broadcast_data(mut rx: mpsc::Receiver<OrderBookOnlyLevels>, tx_summary: watch::Sender<Result<Summary, Status>>) {
     let mut exchange_to_orderbook = HashMap::<ExchangeName, OrderBookOnlyLevels>::new();
     while let Some(orderbook) = rx.recv().await {
@@ -72,12 +54,23 @@ async fn aggregate_and_broadcast_data(mut rx: mpsc::Receiver<OrderBookOnlyLevels
 }
 
 async fn start(symbol: Symbol) -> watch::Receiver<Result<Summary, Status>>{
-    let (tx_orderbook, mut rx_orderbook) = mpsc::channel::<OrderBookOnlyLevels>(20);
+    let (tx_orderbook, rx_orderbook) = mpsc::channel::<OrderBookOnlyLevels>(20);
+    let tx2_orderbook = tx_orderbook.clone();
+
     let (tx_summary, rx_summary) = watch::channel(Ok(Summary::default()));
 
-    tokio::spawn(fetch_orderbook_data(Binance::new_exchange(symbol).await.unwrap(), tx_orderbook.clone()));
-    tokio::spawn(fetch_orderbook_data(Bitstamp::new_exchange(symbol).await.unwrap(), tx_orderbook));
-    tokio::spawn(aggregate_and_broadcast_data(rx_orderbook, tx_summary));
+    let binance = Binance::new_exchange(symbol).await.unwrap();
+    let bitstamp = Bitstamp::new_exchange(symbol).await.unwrap();
+
+    tokio::spawn(async move {
+        binance.start(tx_orderbook).await.unwrap()
+    });
+    tokio::spawn(async move {
+        bitstamp.start(tx2_orderbook).await.unwrap()
+    });
+    tokio::spawn(
+        aggregate_and_broadcast_data(rx_orderbook, tx_summary)
+    );
 
     rx_summary
 }
