@@ -1,4 +1,4 @@
-# rust-orderbook-merger
+# rust-orderbook-aggregator
 
 1. Connects to two exchanges' websocket feeds at the same time,
 2. Pulls orderbooks, using these streaming connections, for a given traded pair of currencies (configurable), from each exchange.
